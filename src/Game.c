@@ -230,6 +230,7 @@ void Game_ChangeAndTeleportBlock(int x, int y, int z, BlockID block) {
     // Wait for the delay thread to finish (optional)
     if (pthread_join(delayThread, NULL) != 0) {
         // Handle thread join error if necessary
+		//idk
     }
 	//sleep(0.1);
 	BlockID old = World_GetBlock(x, y, z);
