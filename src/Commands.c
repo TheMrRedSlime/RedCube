@@ -525,7 +525,7 @@ static void CuboidCommand_Execute(const cc_string* args, int argsCount) {
 		cuboid_block = DrawOpCommand_ParseBlock(&value);
 		if (cuboid_block == -1) return;
 	}
-
+	Entities.CurPlayer->Hacks.Flying = true;
 	DrawOpCommand_Begin();
 }
 
