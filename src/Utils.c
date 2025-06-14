@@ -24,8 +24,13 @@ cc_bool Utils_IsUrlPrefix(const cc_string* value) {
 }
 
 cc_bool Utils_EnsureDirectory(const char* dirName) {
-	cc_string dir = String_FromReadonly(dirName);
-	cc_result res = Directory_Create(&dir);
+	cc_filepath path;
+	cc_string dir;
+	cc_result res;
+	
+	dir = String_FromReadonly(dirName);
+	Platform_EncodePath(&path, &dir);
+	res = Directory_Create(&path);
 
 	if (!res || res == ReturnCode_DirectoryExists) return true;
 	Logger_SysWarn2(res, "creating directory", &dir);
@@ -137,6 +142,19 @@ void Utils_Resize(void** buffer, int* capacity, cc_uint32 elemSize, int defCapac
 		*buffer = Mem_Realloc(*buffer, newCapacity, elemSize, "resizing array");
 	}
 }
+
+void Utils_SwapEndian16(cc_int16* values, int numValues) {
+	cc_uint8* data = (cc_uint8*)values;
+	int i;
+
+	for (i = 0; i < numValues * 2; i += 2)
+	{
+		cc_uint8 tmp = data[i + 0];
+		data[i + 0]  = data[i + 1];
+		data[i + 1]  = tmp;
+	}
+}
+
 
 static const char base64_table[64] = {
 	'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',
@@ -347,3 +365,4 @@ int EntryList_Find(struct StringsBuffer* list, const cc_string* key, char separa
 	}
 	return -1;
 }
+

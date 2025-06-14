@@ -1,28 +1,15 @@
 #include "Chat.h"
+#include "Commands.h"
 #include "String.h"
 #include "Stream.h"
-#include "Platform.h"
 #include "Event.h"
 #include "Game.h"
 #include "Logger.h"
 #include "Server.h"
-#include "World.h"
-#include "Inventory.h"
-#include "Entity.h"
-#include "Window.h"
-#include "Graphics.h"
 #include "Funcs.h"
-#include "Block.h"
-#include "EnvRenderer.h"
 #include "Utils.h"
-#include "TexturePack.h"
 #include "Options.h"
 #include "Drawer2D.h"
-#include <stdbool.h>
-#include <time.h>
-#include <stdio.h>
-#include <unistd.h>
-
  
 static char status[5][STRING_SIZE];
 static char bottom[3][STRING_SIZE];
@@ -34,7 +21,7 @@ static char smallAnnouncement[STRING_SIZE];
 cc_string Chat_Status[5]       = { String_FromArray(status[0]), String_FromArray(status[1]), String_FromArray(status[2]),
                                                                 String_FromArray(status[3]), String_FromArray(status[4]) };
 cc_string Chat_BottomRight[3]  = { String_FromArray(bottom[0]), String_FromArray(bottom[1]), String_FromArray(bottom[2]) };
-cc_string Chat_ClientStatus[2] = { String_FromArray(client[0]), String_FromArray(client[8]) };
+cc_string Chat_ClientStatus[2] = { String_FromArray(client[0]), String_FromArray(client[1]) };
 
 cc_string Chat_Announcement = String_FromArray(announcement);
 cc_string Chat_BigAnnouncement = String_FromArray(bigAnnouncement);
@@ -46,9 +33,7 @@ double Chat_SmallAnnouncementReceived;
 
 struct StringsBuffer Chat_Log, Chat_InputLog;
 cc_bool Chat_Logging;
-bool isepikhax = false;
-int l = 0;
-int nl = 0;
+
 /*########################################################################################################################*
 *-------------------------------------------------------Chat logging------------------------------------------------------*
 *#########################################################################################################################*/
@@ -76,7 +61,7 @@ static void ResetLogFile(void) {
 /* Closes handle to the chat log file */
 static void CloseLogFile(void) {
 	cc_result res;
-	if (!logStream.Meta.File) return;
+	if (!logStream.meta.file) return;
 
 	res = logStream.Close(&logStream);
 	if (res) { Logger_SysWarn2(res, "closing", &logPath); }
@@ -114,6 +99,7 @@ void Chat_DisableLogging(void) {
 
 static cc_bool CreateLogsDirectory(void) {
 	static const cc_string dir = String_FromConst("logs");
+	cc_filepath str;
 	cc_result res;
 	/* Utils_EnsureDirectory cannot be used here because it causes a stack overflow  */
 	/* when running the game and an error occurs when trying to create the directory */
@@ -126,7 +112,8 @@ static cc_bool CreateLogsDirectory(void) {
 	/*       --> Utils_EnsureDirectory --> Logger_SysWarn2 --> Chat_Add --> AppendChatLog -> OpenChatLog */
 	/*            --> Utils_EnsureDirectory --> Logger_SysWarn2 --> Chat_Add --> AppendChatLog ... */
 	/* and so on, until eventually the stack overflows */
-	res = Directory_Create(&dir);
+	Platform_EncodePath(&str, &dir);
+	res = Directory_Create(&str);
 	if (!res || res == ReturnCode_DirectoryExists) return true;
 
 	Chat_DisableLogging();
@@ -137,7 +124,7 @@ static cc_bool CreateLogsDirectory(void) {
 static void OpenChatLog(struct DateTime* now) {
 	cc_result res;
 	int i;
-	if (!CreateLogsDirectory()) return;
+	if (Platform_ReadonlyFilesystem || !CreateLogsDirectory()) return;
 
 	/* Ensure multiple instances do not end up overwriting each other's log entries. */
 	for (i = 0; i < 20; i++) {
@@ -145,9 +132,9 @@ static void OpenChatLog(struct DateTime* now) {
 		String_Format3(&logPath, "logs/%p4-%p2-%p2 ", &now->year, &now->month, &now->day);
 
 		if (i > 0) {
-			String_Format2(&logPath, "%s _%i.log", &logName, &i);
+			String_Format2(&logPath, "%s _%i.txt", &logName, &i);
 		} else {
-			String_Format1(&logPath, "%s.log", &logName);
+			String_Format1(&logPath, "%s.txt", &logName);
 		}
 
 		res = Stream_AppendFile(&logStream, &logPath);
@@ -179,7 +166,7 @@ static void AppendChatLog(const cc_string* text) {
 	}
 
 	lastLogDay = now.day; lastLogMonth = now.month; lastLogYear = now.year;
-	if (!logStream.Meta.File) return;
+	if (!logStream.meta.file) return;
 
 	/* [HH:mm:ss] text */
 	String_InitArray(str, strBuffer);
@@ -260,603 +247,6 @@ void Chat_AddOf(const cc_string* text, int msgType) {
 
 
 /*########################################################################################################################*
-*---------------------------------------------------------Commands--------------------------------------------------------*
-*#########################################################################################################################*/
-#define COMMANDS_PREFIX "/client"
-#define COMMANDS_PREFIX_SPACE "/client "
-static struct ChatCommand* cmds_head;
-static struct ChatCommand* cmds_tail;
-
-static cc_bool Commands_IsCommandPrefix(const cc_string* str) {
-	static const cc_string prefixSpace = String_FromConst(COMMANDS_PREFIX_SPACE);
-	static const cc_string prefix      = String_FromConst(COMMANDS_PREFIX);
-
-	if (!str->length) return false;
-	if (Server.IsSinglePlayer && str->buffer[0] == '/') return true;
-	
-	return String_CaselessStarts(str, &prefixSpace)
-		|| String_CaselessEquals(str, &prefix);
-}
-
-void Commands_Register(struct ChatCommand* cmd) {
-	LinkedList_Append(cmd, cmds_head, cmds_tail);
-}
-
-static struct ChatCommand* Commands_FindMatch(const cc_string* cmdName) {
-	struct ChatCommand* match = NULL;
-	struct ChatCommand* cmd;
-	cc_string name;
-
-	for (cmd = cmds_head; cmd; cmd = cmd->next) {
-		name = String_FromReadonly(cmd->name);
-		if (String_CaselessEquals(&name, cmdName)) return cmd;
-	}
-
-	for (cmd = cmds_head; cmd; cmd = cmd->next) {
-		name = String_FromReadonly(cmd->name);
-		if (!String_CaselessStarts(&name, cmdName)) continue;
-
-		if (match) {
-			Chat_Add1("&e/client: Multiple commands found that start with: \"&f%s&e\".", cmdName);
-			return NULL;
-		}
-		match = cmd;
-	}
-
-	if (!match) {
-		Chat_Add1("&e/client: Unrecognised command: \"&f%s&e\".", cmdName);
-		Chat_AddRaw("&e/client: Type &a/client &efor a list of commands.");
-	}
-	return match;
-}
-
-static void Commands_PrintDefault(void) {
-	cc_string str; char strBuffer[STRING_SIZE];
-	struct ChatCommand* cmd;
-	cc_string name;
-
-	Chat_AddRaw("&eList of client commands:");
-	String_InitArray(str, strBuffer);
-
-	for (cmd = cmds_head; cmd; cmd = cmd->next) {
-		name = String_FromReadonly(cmd->name);
-
-		if ((str.length + name.length + 2) > str.capacity) {
-			Chat_Add(&str);
-			str.length = 0;
-		}
-		String_AppendString(&str, &name);
-		String_AppendConst(&str, ", ");
-	}
-
-	if (str.length) { Chat_Add(&str); }
-	Chat_AddRaw("&eTo see help for a command, type /client help [cmd name]");
-}
-
-static void Commands_Execute(const cc_string* input) {
-	static const cc_string prefixSpace = String_FromConst(COMMANDS_PREFIX_SPACE);
-	static const cc_string prefix      = String_FromConst(COMMANDS_PREFIX);
-	cc_string text = *input;
-
-	struct ChatCommand* cmd;
-	int offset, count;
-	cc_string name, value;
-	cc_string args[50];
-
-	if (String_CaselessStarts(&text, &prefixSpace)) { /* /client command args */
-		offset = prefixSpace.length;
-	} else if (String_CaselessStarts(&text, &prefix)) { /* /clientcommand args */
-		offset = prefix.length;
-	} else { /* /command args */
-		offset = 1;
-	}
-
-	text = String_UNSAFE_SubstringAt(&text, offset);
-	/* Check for only / or /client */
-	if (!text.length) { Commands_PrintDefault(); return; }
-
-	String_UNSAFE_Separate(&text, ' ', &name, &value);
-	cmd = Commands_FindMatch(&name);
-	if (!cmd) return;
-
-	if ((cmd->flags & 0) && !Server.IsSinglePlayer) {
-		Chat_Add1("&e/client: \"&f%s&e\" can only be used in singleplayer.", &name);
-		return;
-	}
-
-	if (cmd->flags & COMMAND_FLAG_UNSPLIT_ARGS) {
-		/* argsCount = 0 if value.length is 0, 1 otherwise */
-		cmd->Execute(&value, value.length != 0);
-	} else {
-		count = String_UNSAFE_Split(&value, ' ', args, Array_Elems(args));
-		cmd->Execute(args,   value.length ? count : 0);
-	}
-}
-
-
-/*########################################################################################################################*
-*------------------------------------------------------Simple commands----------------------------------------------------*
-*#########################################################################################################################*/
-static void HelpCommand_Execute(const cc_string* args, int argsCount) {
-	struct ChatCommand* cmd;
-	int i;
-
-	if (!argsCount) { Commands_PrintDefault(); return; }
-	cmd = Commands_FindMatch(args);
-	if (!cmd) return;
-
-	for (i = 0; i < Array_Elems(cmd->help); i++) {
-		if (!cmd->help[i]) continue;
-		Chat_AddRaw(cmd->help[i]);
-	}
-}
-
-static struct ChatCommand HelpCommand = {
-	"Help", HelpCommand_Execute,
-	COMMAND_FLAG_UNSPLIT_ARGS,
-	{
-		"&a/client help [command name]",
-		"&eDisplays the help for the given command.",
-	}
-};
-
-static void GpuInfoCommand_Execute(const cc_string* args, int argsCount) {
-	char buffer[7 * STRING_SIZE];
-	cc_string str, line;
-	String_InitArray(str, buffer);
-	Gfx_GetApiInfo(&str);
-	
-	while (str.length) {
-		String_UNSAFE_SplitBy(&str, '\n', &line);
-		if (line.length) Chat_Add1("&a%s", &line);
-	}
-}
-
-static struct ChatCommand GpuInfoCommand = {
-	"GpuInfo", GpuInfoCommand_Execute,
-	COMMAND_FLAG_UNSPLIT_ARGS,
-	{
-		"&a/client gpuinfo",
-		"&eDisplays information about your GPU.",
-	}
-};
-
-static void RenderTypeCommand_Execute(const cc_string* args, int argsCount) {
-	int flags;
-	if (!argsCount) {
-		Chat_AddRaw("&e/client: &cYou didn't specify a new render type."); return;
-	}
-
-	flags = EnvRenderer_CalcFlags(args);
-	if (flags >= 0) {
-		EnvRenderer_SetMode(flags);
-		Options_Set(OPT_RENDER_TYPE, args);
-		Chat_Add1("&e/client: &fRender type is now %s.", args);
-	} else {
-		Chat_Add1("&e/client: &cUnrecognised render type &f\"%s\"&c.", args);
-	}
-}
-
-static struct ChatCommand RenderTypeCommand = {
-	"RenderType", RenderTypeCommand_Execute,
-	COMMAND_FLAG_UNSPLIT_ARGS,
-	{
-		"&a/client rendertype [normal/legacy/fast]",
-		"&bnormal: &eDefault render mode, with all environmental effects enabled",
-		"&blegacy: &eSame as normal mode, &cbut is usually slightly slower",
-		"   &eIf you have issues with clouds and map edges disappearing randomly, use this mode",
-		"&bfast: &eSacrifices clouds, fog and overhead sky for faster performance",
-	}
-};
-
-static void ResolutionCommand_Execute(const cc_string* args, int argsCount) {
-	int width, height;
-	if (argsCount < 2) {
-		Chat_Add4("&e/client: &fCurrent resolution is %i@%f2 x %i@%f2", 
-				&WindowInfo.Width, &DisplayInfo.ScaleX, &WindowInfo.Height, &DisplayInfo.ScaleY);
-	} else if (!Convert_ParseInt(&args[0], &width) || !Convert_ParseInt(&args[1], &height)) {
-		Chat_AddRaw("&e/client: &cWidth and height must be integers.");
-	} else if (width <= 0 || height <= 0) {
-		Chat_AddRaw("&e/client: &cWidth and height must be above 0.");
-	} else {
-		Window_SetSize(width, height);
-		/* Window_Create uses these, but scales by DPI. Hence DPI unscale them here. */
-		Options_SetInt(OPT_WINDOW_WIDTH,  (int)(width  / DisplayInfo.ScaleX));
-		Options_SetInt(OPT_WINDOW_HEIGHT, (int)(height / DisplayInfo.ScaleY));
-	}
-}
-
-static struct ChatCommand ResolutionCommand = {
-	"Resolution", ResolutionCommand_Execute,
-	0,
-	{
-		"&a/client resolution [width] [height]",
-		"&ePrecisely sets the size of the rendered window.",
-	}
-};
-
-static void ModelCommand_Execute(const cc_string* args, int argsCount) {
-	if (argsCount) {
-		Entity_SetModel(&LocalPlayer_Instance.Base, args);
-	} else {
-		Chat_AddRaw("&e/client model: &cYou didn't specify a model name.");
-	}
-}
-
-static struct ChatCommand ModelCommand = {
-	"Model", ModelCommand_Execute,
-	0 | COMMAND_FLAG_UNSPLIT_ARGS,
-	{
-		"&a/client model [name]",
-		"&bnames: &echibi, chicken, creeper, human, pig, sheep",
-		"&e       skeleton, spider, zombie, sit, <numerical block id>",
-	}
-};
-
-static void ClearDeniedCommand_Execute(const cc_string* args, int argsCount) {
-	int count = TextureCache_ClearDenied();
-	Chat_Add1("Removed &e%i &fdenied texture pack URLs.", &count);
-}
-
-static struct ChatCommand ClearDeniedCommand = {
-	"ClearDenied", ClearDeniedCommand_Execute,
-	COMMAND_FLAG_UNSPLIT_ARGS,
-	{
-		"&a/client cleardenied",
-		"&eClears the list of texture pack URLs you have denied",
-	}
-};
-
-cc_string Util_StripColourCodes(cc_string str) {
-    char bytes[STRING_SIZE];
-    cc_string ret = String_FromArray(bytes);
-    String_AppendColorless(&ret, &str);
-    return ret;
-}
-
-void Util_ChatAdd(char* str) {
-    cc_string send = String_FromReadonly(str);
-    Chat_Add(&send);
-}
-
-void TPPCommand_Execute(const cc_string* args, int argsCount) {
-    if (argsCount < 1) {
-        cc_string message = String_FromConst("&cNot enough arguments (1 required)");
-        Chat_Add(&message);
-        return;
-    }
-    cc_string name = args[0];
-    for (int i = 0; i < 255; ++i) { // below 255 because entity 255 is the player
-        if (Entities.List[i] != NULL) {
-            cc_string entityName = String_Init(Entities.List[i]->NameRaw, String_CalcLen(Entities.List[i]->NameRaw, STRING_SIZE), STRING_SIZE);
-            entityName = Util_StripColourCodes(entityName);
-            if (String_Equals(&name, &entityName)) {
-                struct Entity* player = &LocalPlayer_Instance.Base;
-                
-                struct LocationUpdate update;
-                Vec3 vec;
-
-                vec = Entities.List[i]->Position;
-                
-                update.flags = LU_HAS_POS;
-                update.pos   = vec;
-
-                player->VTABLE->SetLocation(player, &update);
-                
-                return;
-            }
-        }
-    }
-    {
-        cc_string message = String_FromConst("&cFailed to find player");
-        Chat_Add(&message);
-    }
-}
-
-static struct ChatCommand TPPCommand = {
-    "TPP", TPPCommand_Execute,
-    COMMAND_FLAG_UNSPLIT_ARGS,
-    {
-        "&a/tpp [player]",
-    }
-};
-
-
-
-/*########################################################################################################################*
-*-------------------------------------------------------CuboidCommand-----------------------------------------------------*
-*#########################################################################################################################*/
-static int cuboid_block = -1;
-static IVec3 cuboid_mark1, cuboid_mark2;
-static cc_bool cuboid_persist, cuboid_hooked, cuboid_hasMark1;
-static const cc_string cuboid_msg = String_FromConst("&eCuboid: &fPlace or delete a block.");
-static const cc_string yes_string = String_FromConst("yes");
-
-unsigned long ums(unsigned int ms) {
-  return ms * 1000;
-}
-
-void busy_wait(unsigned long seconds) {
-  // Get the current time in seconds.
-  unsigned long start_time = time(NULL);
-
-  // Wait until the current time is greater than or equal to the start time plus the specified number of seconds.
-  while (time(NULL) - start_time < seconds) {
-    ; // Do nothing.
-  }
-}
-
-void timeout_delay(unsigned long seconds, void (*func)(void)) {
-  alarm(seconds);
-  func();
-  alarm(0);
-}
-
-void TeleportTo(int x, int y, int z){
-	struct Entity* e = &LocalPlayer_Instance.Base;
-	struct LocationUpdate update;
-	Vec3 v;
-	v.X = x;
-	v.Y = y;
-	v.Z = z;
-	update.flags = LU_HAS_POS;
-	update.pos   = v;
-	e->VTABLE->SetLocation(e, &update);
-}
-
-void cuboidTask() {
-    IVec3 min, max;
-    BlockID toPlace;
-    int x, y, z, nx, ny, nz;
-    IVec3_Min(&min, &cuboid_mark1, &cuboid_mark2);
-    IVec3_Max(&max, &cuboid_mark1, &cuboid_mark2);
-    
-    // Check if the world contains the specified coordinates
-    if (!World_Contains(min.X, min.Y, min.Z)) return;
-    if (!World_Contains(max.X, max.Y, max.Z)) return;
-
-    // Determine the block to place
-    toPlace = (BlockID)cuboid_block;
-    if (cuboid_block == -1) toPlace = Inventory_SelectedBlock;
-
-    // Teleport and change blocks in the specified region
-    for (y = min.Y; y <= max.Y; y++) {
-        for (z = min.Z; z <= max.Z; z++) {
-            for (x = min.X; x <= max.X; x++) {
-				for (ny = max.Y; ny >= min.Y; ny--) {
-					for (nz = min.Z; nz >= min.Z; nz--) {
-						for (nx = min.X; nx >= min.X; nx--) {
-							Game_ChangeAndTeleportBlock(nx, ny, nz, toPlace);
-						}
-					}
-				}
-                Game_ChangeAndTeleportBlock(x, y, z, toPlace);
-            }
-        }
-    }
-    /*
-    for (ny = max.Y; ny >= min.Y; ny--) {
-        for (nz = min.Z; nz >= min.Z; nz--) {
-            for (nx = min.X; nx >= min.X; nx--) {
-                Game_ChangeAndTeleportBlock(nx, ny, nz, toPlace);
-            }
-        }
-    }
-	*/
-}
-
-static void CuboidCommand_DoCuboid(void) {
-	IVec3 min, max;
-	BlockID toPlace;
-	int x, y, z, nx, ny, nz;
-	IVec3_Min(&min, &cuboid_mark1, &cuboid_mark2);
-	IVec3_Max(&max, &cuboid_mark1, &cuboid_mark2);
-	if (!World_Contains(min.X, min.Y, min.Z)) return;
-	if (!World_Contains(max.X, max.Y, max.Z)) return;
-
-	toPlace = (BlockID)cuboid_block;
-	if (cuboid_block == -1) toPlace = Inventory_SelectedBlock;
-
-	for (y = min.Y; y <= max.Y; y++) {
-		for (z = min.Z; z <= max.Z; z++) {
-			for (x = min.X; x <= max.X; x++) {
-				TeleportTo(x,y,z);
-				Game_ChangeAndTeleportBlock(x, y, z, toPlace);
-				usleep(69000);
-			}
-		}
-	}
-	for (ny = max.Y; ny >= min.Y; ny--) {
-		for (nz = min.Z; nz >= min.Z; nz--) {
-			for (nx = min.X; nx >= min.X; nx--) {
-				TeleportTo(nx, ny, nz);
-				Game_ChangeAndTeleportBlock(nx, ny, nz, toPlace);
-				usleep(69000);
-			}
-		}
-	}
-}
-
-static void CuboidCommand_BlockChanged(void* obj, IVec3 coords, BlockID old, BlockID now) {
-	cc_string msg; char msgBuffer[STRING_SIZE];
-	String_InitArray(msg, msgBuffer);
-
-	if (!cuboid_hasMark1) {
-		cuboid_mark1    = coords;
-		cuboid_hasMark1 = true;
-		Game_UpdateBlock(coords.X, coords.Y, coords.Z, old);	
-
-		String_Format3(&msg, "&eCuboid: &fMark 1 placed at (%i, %i, %i), place mark 2.", &coords.X, &coords.Y, &coords.Z);
-		Chat_AddOf(&msg, MSG_TYPE_CLIENTSTATUS_1);
-	} else {
-		cuboid_mark2 = coords;
-		CuboidCommand_DoCuboid();
-
-		if (!cuboid_persist) {
-			Event_Unregister_(&UserEvents.BlockChanged, NULL, CuboidCommand_BlockChanged);
-			cuboid_hooked = false;
-			Chat_AddOf(&String_Empty, MSG_TYPE_CLIENTSTATUS_1);
-		} else {
-			cuboid_hasMark1 = false;
-			Chat_AddOf(&cuboid_msg, MSG_TYPE_CLIENTSTATUS_1);
-		}
-	}
-}
-
-static cc_bool CuboidCommand_ParseArgs(const cc_string* args) {
-	cc_string value = *args;
-	int block;
-
-	/* Check for /cuboid [block] yes */
-	if (String_CaselessEnds(&value, &yes_string)) {
-		cuboid_persist = true; 
-		value.length  -= 3;
-		String_UNSAFE_TrimEnd(&value);
-
-		/* special case "/cuboid yes" */
-		if (!value.length) return true;
-	}
-
-	block = Block_Parse(&value);
-	if (block == -1) {
-		Chat_Add1("&eCuboid: &c\"%s\" is not a valid block name or id.", &value); return false;
-	}
-
-	if (block > Game_Version.MaxBlock && !Block_IsCustomDefined(block)) {
-		Chat_Add1("&eCuboid: &cThere is no block with id \"%s\".", &value); return false;
-	}
-
-	cuboid_block = block;
-	return true;
-}
-
-static void CuboidCommand_Execute(const cc_string* args, int argsCount) {
-	if (cuboid_hooked) {
-		Event_Unregister_(&UserEvents.BlockChanged, NULL, CuboidCommand_BlockChanged);
-		cuboid_hooked = false;
-	}
-
-	cuboid_block    = -1;
-	cuboid_hasMark1 = false;
-	cuboid_persist  = false;
-	if (argsCount && !CuboidCommand_ParseArgs(args)) return;
-
-	Chat_AddOf(&cuboid_msg, MSG_TYPE_CLIENTSTATUS_1);
-	Event_Register_(&UserEvents.BlockChanged, NULL, CuboidCommand_BlockChanged);
-	cuboid_hooked = true;
-}
-
-static struct ChatCommand CuboidCommand = {
-	"Cuboid", CuboidCommand_Execute,
-	0 | COMMAND_FLAG_UNSPLIT_ARGS,
-	{
-		"&a/client cuboid [block] [persist]",
-		"&eFills the 3D rectangle between two points with [block].",
-		"&eIf no block is given, uses your currently held block.",
-		"&e  If persist is given and is \"yes\", then the command",
-		"&e  will repeatedly cuboid, without needing to be typed in again.",
-	}
-};
-
-
-/*########################################################################################################################*
-*------------------------------------------------------TeleportCommand----------------------------------------------------*
-*#########################################################################################################################*/
-static void TeleportCommand_Execute(const cc_string* args, int argsCount) {
-	struct Entity* e = &LocalPlayer_Instance.Base;
-	struct LocationUpdate update;
-	Vec3 v;
-
-	if (argsCount != 3) {
-		Chat_AddRaw("&e/client teleport: &cYou didn't specify X, Y and Z coordinates.");
-		return;
-	}
-	if (!Convert_ParseFloat(&args[0], &v.X) || !Convert_ParseFloat(&args[1], &v.Y) || !Convert_ParseFloat(&args[2], &v.Z)) {
-		Chat_AddRaw("&e/client teleport: &cCoordinates must be decimals");
-		return;
-	}
-
-	update.flags = LU_HAS_POS;
-	update.pos   = v;
-	e->VTABLE->SetLocation(e, &update);
-}
-
-static struct ChatCommand TeleportCommand = {
-	"TP", TeleportCommand_Execute,
-	0,
-	{
-		"&a/client tp [x y z]",
-		"&eMoves you to the given coordinates.",
-	}
-};
-
-static void Allhax_Execute() {
-	struct LocalPlayer* p = &LocalPlayer_Instance;
-	if(isepikhax == true){
-		isepikhax = false;
-		Chat_AddRaw("&cHax Disabled!");
-		p->Hacks.CanAnyHacks = false;
-		p->Hacks.CanBePushed = false;
-		p->Hacks.CanDoubleJump = false;
-		p->Hacks.CanFly = false;
-		p->Hacks.CanNoclip = false;
-		p->Hacks.CanPushbackBlocks = false;
-		p->Hacks.CanRespawn = false;
-		p->Hacks.CanSpeed = false;
-		p->Hacks.CanUseThirdPerson = false;
-	} else if(isepikhax == false){
-		isepikhax = true;
-		Chat_AddRaw("&aHax Enabled!");
-		p->Hacks.CanAnyHacks = true;
-		p->Hacks.CanBePushed = true;
-		p->Hacks.CanDoubleJump = true;
-		p->Hacks.CanFly = true;
-		p->Hacks.CanNoclip = true;
-		p->Hacks.CanPushbackBlocks = true;
-		p->Hacks.CanRespawn = true;
-		p->Hacks.CanSpeed = true;
-		p->Hacks.CanUseThirdPerson = true;
-	} else if (isepikhax == true && p->Hacks.CanAnyHacks == false || isepikhax == true && p->Hacks.CanBePushed == false || isepikhax == true && p->Hacks.CanDoubleJump == false || isepikhax == true && p->Hacks.CanFly == false || isepikhax == true && p->Hacks.CanNoclip == false || isepikhax == true && p->Hacks.CanPushbackBlocks == false || isepikhax == true && p->Hacks.CanRespawn == false || isepikhax == true && p->Hacks.CanSeeAllNames == false || isepikhax == true && p->Hacks.CanSpeed == false || isepikhax == true && p->Hacks.CanUseThirdPerson == false || isepikhax == true && p->Hacks.Enabled == false) {
-		Chat_AddRaw("&aHax ReEnabled!");
-		p->Hacks.CanAnyHacks = true;
-		p->Hacks.CanBePushed = true;
-		p->Hacks.CanDoubleJump = true;
-		p->Hacks.CanFly = true;
-		p->Hacks.CanNoclip = true;
-		p->Hacks.CanPushbackBlocks = true;
-		p->Hacks.CanRespawn = true;
-		p->Hacks.CanSpeed = true;
-		p->Hacks.CanUseThirdPerson = true;
-	}
-}
-
-static void ClearCmd_Execute() {
-	int clearer;
-
-	for (clearer = 0; clearer <= 420; clearer++) {
-		Chat_AddRaw("");
-	}
-	Chat_AddRaw("&4Chat Cleared");
-}
-
-static struct ChatCommand AllhaxCmd = {
-	"AllHax", Allhax_Execute,
-	0,
-	{
-		"&a/client allhax",
-		"&eEnables or disables hax.",
-	}
-};
-static struct ChatCommand ClearChatCmd = {
-	"clearchat", ClearCmd_Execute,
-	0,
-	{
-		"&a/clearchat",
-		"&eClears chat",
-	}
-};
-
-/*########################################################################################################################*
 *-------------------------------------------------------Generic chat------------------------------------------------------*
 *#########################################################################################################################*/
 static void LogInputUsage(const cc_string* text) {
@@ -875,26 +265,12 @@ void Chat_Send(const cc_string* text, cc_bool logUsage) {
 	Event_RaiseChat(&ChatEvents.ChatSending, text, 0);
 	if (logUsage) LogInputUsage(text);
 
-	if (Commands_IsCommandPrefix(text)) {
-		Commands_Execute(text);
-	} else {
+	if (!Commands_Execute(text)) {
 		Server.SendChat(text);
 	}
 }
 
 static void OnInit(void) {
-	Commands_Register(&GpuInfoCommand);
-	Commands_Register(&HelpCommand);
-	Commands_Register(&RenderTypeCommand);
-	Commands_Register(&ResolutionCommand);
-	Commands_Register(&ModelCommand);
-	Commands_Register(&CuboidCommand);
-	Commands_Register(&TeleportCommand);
-	Commands_Register(&AllhaxCmd);
-	Commands_Register(&ClearChatCmd);
-	Commands_Register(&TPPCommand);
-	Commands_Register(&ClearDeniedCommand);
-
 #if defined CC_BUILD_MOBILE || defined CC_BUILD_WEB
 	/* Better to not log chat by default on mobile/web, */
 	/* since it's not easily visible to end users */
@@ -925,7 +301,6 @@ static void OnReset(void) {
 static void OnFree(void) {
 	CloseLogFile();
 	ClearCPEMessages();
-	cmds_head = NULL;
 
 	ClearChatLogs();
 	StringsBuffer_Clear(&Chat_InputLog);
