@@ -17,12 +17,15 @@
 #include "TexturePack.h"
 #include "Options.h"
 #include "Drawer2D.h"
-#include "time.h"
+#include "unistd.h"
+#include "pthread.h"
+#include "stdlib.h"
 
 #define COMMANDS_PREFIX "/client"
 #define COMMANDS_PREFIX_SPACE "/client "
 static struct ChatCommand* cmds_head;
 static struct ChatCommand* cmds_tail;
+static cc_bool hacks=false;
 
 void Commands_Register(struct ChatCommand* cmd) {
 	LinkedList_Append(cmd, cmds_head, cmds_tail);
@@ -460,23 +463,53 @@ static int DrawOpCommand_ParseBlock(const cc_string* arg) {
 *-------------------------------------------------------CuboidCommand-----------------------------------------------------*
 *#########################################################################################################################*/
 static int cuboid_block;
-
-static void CuboidCommand_Draw(IVec3 min, IVec3 max) {
+typedef struct {
+	IVec3 min, max;
 	BlockID toPlace;
-	int x, y, z;
+} CuboidDrawArgs;
 
-	toPlace = (BlockID)cuboid_block;
-	if (cuboid_block == -1) toPlace = Inventory_SelectedBlock;
 
+static void* Cuboid_DrawThread(void* arg) {
+	CuboidDrawArgs* p = (CuboidDrawArgs*)arg;
+	IVec3 min = p->min, max = p->max;
+	BlockID toPlace = p->toPlace;
+	free(p);
+
+	float x, y, z;
 	for (y = min.y; y <= max.y; y++) {
 		for (z = min.z; z <= max.z; z++) {
 			for (x = min.x; x <= max.x; x++) {
+				struct Entity* e = &Entities.CurPlayer->Base;
+				struct LocationUpdate update;
+				Vec3 v;
+				v.x = x;
+				v.y = y;
+				v.z = z;
+				update.flags = LU_HAS_POS;
+				update.pos   = v;
+				e->VTABLE->SetLocation(e, &update);
 				Game_ChangeBlock(x, y, z, toPlace);
-				sleep(0.1);
+				usleep(75000);
 			}
 		}
 	}
+	return NULL;
 }
+
+void CuboidCommand_Draw(IVec3 min, IVec3 max) {
+	BlockID toPlace = (BlockID)cuboid_block;
+	if (cuboid_block == -1) toPlace = Inventory_SelectedBlock;
+
+	CuboidDrawArgs* args = malloc(sizeof(CuboidDrawArgs));
+	args->min = min;
+	args->max = max;
+	args->toPlace = toPlace;
+
+	pthread_t tid;
+	pthread_create(&tid, NULL, Cuboid_DrawThread, args);
+	pthread_detach(tid);
+}
+
 
 static void CuboidCommand_Execute(const cc_string* args, int argsCount) {
 	cc_string value = *args;
@@ -541,7 +574,7 @@ static void ReplaceCommand_Execute(const cc_string* args, int argsCount) {
 	DrawOpCommand_ResetState();
 	drawOp_name = "Replace";
 	drawOp_Func = ReplaceCommand_Draw;
-
+	
 	DrawOpCommand_ExtractPersistArg(&value);
 	replace_target = -1; /* Default to replacing with currently held block */
 
@@ -598,7 +631,7 @@ static void TeleportCommand_Execute(const cc_string* args, int argsCount) {
 
 static struct ChatCommand TeleportCommand = {
 	"TP", TeleportCommand_Execute,
-	NULL,
+	0,
 	{
 		"&a/client tp [x y z]",
 		"&eMoves you to the given coordinates.",
@@ -608,16 +641,34 @@ static struct ChatCommand TeleportCommand = {
 /*########################################################################################################################*
 *------------------------------------------------------AllHaxCommand----------------------------------------------------*
 *#########################################################################################################################*/
-static void HacksCommand_Execute(const cc_string* args, int argsCount) {
-	if(!Entities.CurPlayer->Hacks.CanAnyHacks){
-		Entities.CurPlayer->Hacks.CanAnyHacks = !Entities.CurPlayer->Hacks.CanAnyHacks;
-		Chat_Add1("&a Hacks: &e%s", Entities.CurPlayer->Hacks.CanAnyHacks);
+static void HacksCommand_Execute() {
+	if(hacks){
+		Entities.CurPlayer->Hacks.CanAnyHacks = false;
+		Entities.CurPlayer->Hacks.CanNoclip = false;
+		Entities.CurPlayer->Hacks.CanDoubleJump = false;
+		Entities.CurPlayer->Hacks.CanFly = false;
+		Entities.CurPlayer->Hacks.CanPushbackBlocks = false;
+		Entities.CurPlayer->Hacks.CanSpeed = false;
+		Entities.CurPlayer->Hacks.CanUseThirdPerson = false;
+		Entities.CurPlayer->Hacks.CanSeeAllNames = false;
+		Chat_AddRaw("&eHacks: &aFalse");
+	} else {
+		Entities.CurPlayer->Hacks.CanAnyHacks = true;
+		Entities.CurPlayer->Hacks.CanNoclip = true;
+		Entities.CurPlayer->Hacks.CanDoubleJump = true;
+		Entities.CurPlayer->Hacks.CanFly = true;
+		Entities.CurPlayer->Hacks.CanPushbackBlocks = true;
+		Entities.CurPlayer->Hacks.CanSpeed = true;
+		Entities.CurPlayer->Hacks.CanUseThirdPerson = true;
+		Entities.CurPlayer->Hacks.CanSeeAllNames = true;
+		Chat_AddRaw("&eHacks: &aTrue");
 	}
+	hacks = !hacks;
 }
 
 static struct ChatCommand HacksCommand = {
 	"allhax", HacksCommand_Execute,
-	NULL,
+	0,
 	{
 		"&a/client allhax",
 		"&eBypasses server-side restrictions to enable hacks",

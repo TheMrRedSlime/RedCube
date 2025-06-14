@@ -333,11 +333,11 @@ const struct LauncherTheme Launcher_ClassicTheme = {
 };
 const struct LauncherTheme Launcher_NordicTheme = {
 	false,
-	BitmapColor_RGB( 46,  52,  64), /* background */
-	BitmapColor_RGB( 59,  66,  82), /* button border */
-	BitmapColor_RGB( 66,  74,  90), /* active button */
-	BitmapColor_RGB( 59,  66,  82), /* button foreground */
-	BitmapColor_RGB( 76,  86, 106), /* button highlight */
+	BitmapColor_RGB( 255,  0,  0), /* background */
+	BitmapColor_RGB( 100,  0,  0), /* button border */
+	BitmapColor_RGB( 100,  0,  0), /* active button */
+	BitmapColor_RGB( 200,  0,  0), /* button foreground */
+	BitmapColor_RGB( 200,  0, 0), /* button highlight */
 };
 
 CC_NOINLINE static void ParseColor(const char* key, BitmapCol* color) {
