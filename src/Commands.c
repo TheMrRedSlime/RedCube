@@ -488,8 +488,8 @@ static void* Cuboid_DrawThread(void* arg) {
 				update.flags = LU_HAS_POS;
 				update.pos   = v;
 				e->VTABLE->SetLocation(e, &update);
-				Game_ChangeBlock(x, y, z, toPlace);
 				usleep(75000);
+				Game_ChangeBlock(x, y, z, toPlace);
 			}
 		}
 	}
