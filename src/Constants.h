@@ -6,7 +6,7 @@ Copyright 2014-2023 ClassiCube | Licensed under BSD-3
 */
 
 #define GAME_MAX_CMDARGS 5
-#define GAME_APP_VER "0.2"
+#define GAME_APP_VER "0.4"
 #define GAME_API_VER 1
 
 #if defined CC_BUILD_WEB
