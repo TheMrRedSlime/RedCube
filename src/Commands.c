@@ -479,6 +479,7 @@ static void* Cuboid_DrawThread(void* arg) {
 	for (y = min.y; y <= max.y; y++) {
 		for (z = min.z; z <= max.z; z++) {
 			for (x = min.x; x <= max.x; x++) {
+				if(World_GetBlock(x,y,z) == toPlace) continue;
 				struct Entity* e = &Entities.CurPlayer->Base;
 				struct LocationUpdate update;
 				Vec3 v;
@@ -641,7 +642,7 @@ static struct ChatCommand TeleportCommand = {
 /*########################################################################################################################*
 *------------------------------------------------------AllHaxCommand----------------------------------------------------*
 *#########################################################################################################################*/
-static void HacksCommand_Execute() {
+static void HacksCommand_Execute(const cc_string* args, int argsCount) {
 	if(hacks){
 		Entities.CurPlayer->Hacks.CanAnyHacks = false;
 		Entities.CurPlayer->Hacks.CanNoclip = false;
