@@ -20,6 +20,8 @@
 #include "unistd.h"
 #include "pthread.h"
 #include "stdlib.h"
+#include <errno.h>
+#include <time.h>
 
 #define COMMANDS_PREFIX "/client"
 #define COMMANDS_PREFIX_SPACE "/client "
@@ -474,6 +476,9 @@ static void* Cuboid_DrawThread(void* arg) {
 	IVec3 min = p->min, max = p->max;
 	BlockID toPlace = p->toPlace;
 	free(p);
+	struct timespec req = { 0, 75000L };
+	struct timespec rem;
+
 
 	float x, y, z;
 	for (y = min.y; y <= max.y; y++) {
@@ -489,7 +494,9 @@ static void* Cuboid_DrawThread(void* arg) {
 				update.flags = LU_HAS_POS;
 				update.pos   = v;
 				e->VTABLE->SetLocation(e, &update);
-				usleep(75000);
+				while (nanosleep(&req, &rem) == -1 && errno == EINTR) {
+			    	req = rem;
+				}
 				Game_ChangeBlock(x, y, z, toPlace);
 			}
 		}
