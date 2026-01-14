@@ -1,9 +1,9 @@
 #include "Commands.h"
 #include "Chat.h"
+#include "Core.h"
 #include "String.h"
 #include "Event.h"
 #include "Game.h"
-#include "Logger.h"
 #include "Server.h"
 #include "World.h"
 #include "Inventory.h"
@@ -13,14 +13,13 @@
 #include "Funcs.h"
 #include "Block.h"
 #include "EnvRenderer.h"
-#include "Utils.h"
 #include "TexturePack.h"
 #include "Options.h"
 #include "Drawer2D.h"
-#include "unistd.h"
 #include "pthread.h"
 #include "stdlib.h"
 #include <errno.h>
+#include <string.h>
 #include <time.h>
 
 #define COMMANDS_PREFIX "/client"
@@ -32,7 +31,6 @@ static cc_bool hacks=false;
 void Commands_Register(struct ChatCommand* cmd) {
 	LinkedList_Append(cmd, cmds_head, cmds_tail);
 }
-
 
 /*########################################################################################################################*
 *------------------------------------------------------Command handling---------------------------------------------------*
@@ -464,12 +462,12 @@ static int DrawOpCommand_ParseBlock(const cc_string* arg) {
 /*########################################################################################################################*
 *-------------------------------------------------------CuboidCommand-----------------------------------------------------*
 *#########################################################################################################################*/
+
 static int cuboid_block;
 typedef struct {
 	IVec3 min, max;
 	BlockID toPlace;
 } CuboidDrawArgs;
-
 
 static void* Cuboid_DrawThread(void* arg) {
 	CuboidDrawArgs* p = (CuboidDrawArgs*)arg;
@@ -548,8 +546,6 @@ static struct ChatCommand CuboidCommand = {
 		"&e  will repeatedly cuboid, without needing to be typed in again.",
 	}
 };
-
-
 /*########################################################################################################################*
 *-------------------------------------------------------ReplaceCommand-----------------------------------------------------*
 *#########################################################################################################################*/
@@ -561,6 +557,9 @@ static void ReplaceCommand_Draw(IVec3 min, IVec3 max) {
 
 	source  = (BlockID)replace_source;
 	toPlace = (BlockID)replace_target;
+	struct timespec req = { 0, 75000L };
+	struct timespec rem;
+	
 	if (replace_target == -1) toPlace = Inventory_SelectedBlock;
 
 	for (y = min.y; y <= max.y; y++) {
@@ -568,6 +567,18 @@ static void ReplaceCommand_Draw(IVec3 min, IVec3 max) {
 			for (x = min.x; x <= max.x; x++) {
 				cur = World_GetBlock(x, y, z);
 				if (cur != source) continue;
+				struct Entity* e = &Entities.CurPlayer->Base;
+				struct LocationUpdate update;
+				Vec3 v;
+				v.x = x;
+				v.y = y;
+				v.z = z;
+				update.flags = LU_HAS_POS;
+				update.pos   = v;
+				e->VTABLE->SetLocation(e, &update);
+				while (nanosleep(&req, &rem) == -1 && errno == EINTR) {
+			    	req = rem;
+				}
 				Game_ChangeBlock(x, y, z, toPlace);
 			}
 		}
@@ -604,7 +615,7 @@ static void ReplaceCommand_Execute(const cc_string* args, int argsCount) {
 
 static struct ChatCommand ReplaceCommand = {
 	"Replace", ReplaceCommand_Execute,
-	COMMAND_FLAG_SINGLEPLAYER_ONLY | COMMAND_FLAG_UNSPLIT_ARGS,
+	COMMAND_FLAG_UNSPLIT_ARGS,
 	{
 		"&a/client replace [source] [replacement] [persist]",
 		"&eReplaces all [source] blocks between two points with [replacement].",
@@ -645,6 +656,71 @@ static struct ChatCommand TeleportCommand = {
 		"&eMoves you to the given coordinates.",
 	}
 };
+
+/*########################################################################################################################*
+*---------------------------------------------------PlayerTeleportCommand-------------------------------------------------*
+*#########################################################################################################################*/
+
+//Helper cause for some ungodly reason they have &1 at the beginning of the name?!
+static cc_string StripColorPrefix(const cc_string* str) {
+	// NEVER REMOVE >= 2 (WHY ARE THERE BLANK NAMES?!)
+    if (str->length >= 2 && str->buffer[0] == '&') {
+        return String_UNSAFE_SubstringAt(str, 2);
+    }
+    return *str;
+}
+
+static void PlayerTeleportCommand_Execute(const cc_string* args, int argsCount) {
+	struct Entity* ep = &Entities.CurPlayer->Base;
+	struct LocationUpdate update;
+	Vec3 v;
+	cc_bool found = false;
+	cc_string target = args[0];
+
+	if (argsCount != 1) {
+		Chat_AddRaw("&e/client tpp [name]");
+		return;
+	}
+	
+	Chat_Add1("&eTeleporting to %s", &target);
+
+	for (int i = 0; i < ENTITIES_MAX_COUNT; i++){
+		struct Entity* e = Entities.List[i];
+		if (!e || e == &Entities.CurPlayer->Base) continue;
+
+		//cc_string name = String_FromRaw(e->NameRaw, 64);
+		cc_string name = String_FromReadonly(e->NameRaw);
+		name = StripColorPrefix(&name);
+
+		//debug
+		//Chat_Add1("&aExists %s", &name);
+		//printf("Entity name: %.*s\n", name.length, name.buffer);
+
+		if (String_CaselessEquals(&name, &target)){
+			 v = e->Position;
+			 update.flags = LU_HAS_POS;
+			 update.pos = v;
+			 e->VTABLE->SetLocation(ep, &update);
+			 found = true;
+			 Chat_Add1("&aTeleported to %s", &name);
+			 break;
+		}
+	}
+	if (!found){
+		Chat_AddRaw("&cPlayer Not Found");
+	}
+
+}
+
+static struct ChatCommand PlayerTeleportCommand = {
+	"TPP", PlayerTeleportCommand_Execute,
+	0,
+	{
+		"&a/client tpp [name]",
+		"&eTeleports you to a Player.",
+	}
+};
+
 
 /*########################################################################################################################*
 *------------------------------------------------------AllHaxCommand----------------------------------------------------*
@@ -882,6 +958,7 @@ static void OnInit(void) {
 	Commands_Register(&ModelCommand);
 	Commands_Register(&SkinCommand);
 	Commands_Register(&TeleportCommand);
+	Commands_Register(&PlayerTeleportCommand);
 	Commands_Register(&ClearDeniedCommand);
 	Commands_Register(&MotdCommand);
 	Commands_Register(&PlaceCommand);
