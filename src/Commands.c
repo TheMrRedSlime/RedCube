@@ -1,6 +1,7 @@
 #include "Commands.h"
 #include "Chat.h"
 #include "Core.h"
+#include "Protocol.h"
 #include "String.h"
 #include "Event.h"
 #include "Game.h"
@@ -476,7 +477,8 @@ static void* Cuboid_DrawThread(void* arg) {
 	free(p);
 	// The maximum MCGalaxy can allow is 200 blocks / 5 seconds (so 40 B/S) which is roughly 25ms for 40 B/S
 	//30 MS should be fine for safe input
-	struct timespec req = { 0, 30000000L };
+	//However apparently 7500ns somehow works and is enough for the server to be like **ok works**
+	struct timespec req = { 0, 75000L };
 	struct timespec rem;
 
 
@@ -564,7 +566,7 @@ static void* Sphere_DrawThread(void* arg) {
 	IVec3 min = p->min, max = p->max;
 	BlockID toPlace = p->toPlace;
 	free(p);
-	struct timespec req = { 0, 30000000L };
+	struct timespec req = { 0, 75000L };
 	struct timespec rem;
 
 	//math is scary pls help
@@ -662,7 +664,7 @@ static void ReplaceCommand_Draw(IVec3 min, IVec3 max) {
 
 	source  = (BlockID)replace_source;
 	toPlace = (BlockID)replace_target;
-	struct timespec req = { 0, 30000000L };
+	struct timespec req = { 0, 75000L };
 	struct timespec rem;
 	
 	if (replace_target == -1) toPlace = Inventory_SelectedBlock;
@@ -831,7 +833,7 @@ static struct ChatCommand PlayerTeleportCommand = {
 *------------------------------------------------------AllHaxCommand----------------------------------------------------*
 *#########################################################################################################################*/
 static void HacksCommand_Execute(const cc_string* args, int argsCount) {
-/*	if(hacks){
+	if(hacks){
 		Entities.CurPlayer->Hacks.CanAnyHacks = false;
 		Entities.CurPlayer->Hacks.CanNoclip = false;
 		Entities.CurPlayer->Hacks.CanDoubleJump = false;
@@ -852,17 +854,17 @@ static void HacksCommand_Execute(const cc_string* args, int argsCount) {
 		Entities.CurPlayer->Hacks.CanSeeAllNames = true;
 		Chat_AddRaw("&eHacks: &aTrue");
 	}
-	hacks = !hacks; */
+	hacks = !hacks; 
 }
 
-/*static struct ChatCommand HacksCommand = {
+static struct ChatCommand HacksCommand = {
 	"allhax", HacksCommand_Execute,
 	0,
 	{
 		"&a/client allhax",
 		"&eBypasses server-side restrictions to enable hacks",
 	}
-}; */
+}; 
 
 /*########################################################################################################################*
 *------------------------------------------------------BlockEditCommand----------------------------------------------------*
@@ -1071,7 +1073,7 @@ static void OnInit(void) {
 	Commands_Register(&CuboidCommand);
 	Commands_Register(&SphereCommand);
 	Commands_Register(&ReplaceCommand);
-	//Commands_Register(&HacksCommand);
+	Commands_Register(&HacksCommand);
 }
 
 static void OnFree(void) {
