@@ -474,7 +474,9 @@ static void* Cuboid_DrawThread(void* arg) {
 	IVec3 min = p->min, max = p->max;
 	BlockID toPlace = p->toPlace;
 	free(p);
-	struct timespec req = { 0, 75000L };
+	// The maximum MCGalaxy can allow is 200 blocks / 5 seconds (so 40 B/S) which is roughly 25ms for 40 B/S
+	//30 MS should be fine for safe input
+	struct timespec req = { 0, 30000000L };
 	struct timespec rem;
 
 
@@ -562,7 +564,7 @@ static void* Sphere_DrawThread(void* arg) {
 	IVec3 min = p->min, max = p->max;
 	BlockID toPlace = p->toPlace;
 	free(p);
-	struct timespec req = { 0, 75000L };
+	struct timespec req = { 0, 30000000L };
 	struct timespec rem;
 
 	//math is scary pls help
@@ -660,7 +662,7 @@ static void ReplaceCommand_Draw(IVec3 min, IVec3 max) {
 
 	source  = (BlockID)replace_source;
 	toPlace = (BlockID)replace_target;
-	struct timespec req = { 0, 75000L };
+	struct timespec req = { 0, 30000000L };
 	struct timespec rem;
 	
 	if (replace_target == -1) toPlace = Inventory_SelectedBlock;
