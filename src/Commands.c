@@ -700,7 +700,7 @@ static void PlayerTeleportCommand_Execute(const cc_string* args, int argsCount) 
 			 v = e->Position;
 			 update.flags = LU_HAS_POS;
 			 update.pos = v;
-			 e->VTABLE->SetLocation(ep, &update);
+			 ep->VTABLE->SetLocation(ep, &update);
 			 found = true;
 			 Chat_Add1("&aTeleported to %s", &name);
 			 break;
