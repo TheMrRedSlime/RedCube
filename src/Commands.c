@@ -546,6 +546,109 @@ static struct ChatCommand CuboidCommand = {
 		"&e  will repeatedly cuboid, without needing to be typed in again.",
 	}
 };
+
+/*########################################################################################################################*
+*-------------------------------------------------------SphereCommand-----------------------------------------------------*
+*#########################################################################################################################*/
+
+static int sphere_block;
+typedef struct {
+	IVec3 min, max;
+	BlockID toPlace;
+} SphereDrawArgs;
+
+static void* Sphere_DrawThread(void* arg) {
+	SphereDrawArgs* p = (SphereDrawArgs*)arg;
+	IVec3 min = p->min, max = p->max;
+	BlockID toPlace = p->toPlace;
+	free(p);
+	struct timespec req = { 0, 75000L };
+	struct timespec rem;
+
+	//math is scary pls help
+	float cx = (min.x + max.x) / 2.0f;
+    float cy = (min.y + max.y) / 2.0f;
+    float cz = (min.z + max.z) / 2.0f;
+
+    float rx = (max.x - min.x) / 2.0f + 0.01f;
+    float ry = (max.y - min.y) / 2.0f + 0.01f;
+    float rz = (max.z - min.z) / 2.0f + 0.01f;
+
+
+	float x, y, z;
+	for (y = min.y; y <= max.y; y++) {
+		for (z = min.z; z <= max.z; z++) {
+			for (x = min.x; x <= max.x; x++) {
+                float dx = (x - cx) / rx;
+                float dy = (y - cy) / ry;
+                float dz = (z - cz) / rz;
+
+                if ((dx*dx + dy*dy + dz*dz) > 1.0f) continue;
+
+				if(World_GetBlock(x,y,z) == toPlace) continue;
+				struct Entity* e = &Entities.CurPlayer->Base;
+				struct LocationUpdate update;
+				Vec3 v;
+				v.x = x;
+				v.y = y;
+				v.z = z;
+				update.flags = LU_HAS_POS;
+				update.pos   = v;
+				e->VTABLE->SetLocation(e, &update);
+				while (nanosleep(&req, &rem) == -1 && errno == EINTR) {
+			    	req = rem;
+				}
+				Game_ChangeBlock(x, y, z, toPlace);
+			}
+		}
+	}
+	return NULL;
+}
+
+void SphereCommand_Draw(IVec3 min, IVec3 max) {
+	BlockID toPlace = (BlockID)sphere_block;
+	if (sphere_block == -1) toPlace = Inventory_SelectedBlock;
+
+	SphereDrawArgs* args = malloc(sizeof(SphereDrawArgs));
+	args->min = min;
+	args->max = max;
+	args->toPlace = toPlace;
+
+	pthread_t tid;
+	pthread_create(&tid, NULL, Sphere_DrawThread, args);
+	pthread_detach(tid);
+}
+
+
+static void SphereCommand_Execute(const cc_string* args, int argsCount) {
+	cc_string value = *args;
+
+	DrawOpCommand_ResetState();
+	drawOp_name = "Sphere";
+	drawOp_Func = SphereCommand_Draw;
+
+	sphere_block = -1; /* Default to cuboiding with currently held block */
+
+	if (value.length) {
+		sphere_block = DrawOpCommand_ParseBlock(&value);
+		if (sphere_block == -1) return;
+	}
+	Entities.CurPlayer->Hacks.Flying = true;
+	DrawOpCommand_Begin();
+}
+
+static struct ChatCommand SphereCommand = {
+	"Sphere", SphereCommand_Execute,
+	COMMAND_FLAG_UNSPLIT_ARGS,
+	{
+		"&a/client Sphere [block]",
+		"&eFills the 3D rectangle between two points with [block].",
+		"&eIf no block is given, uses your currently held block.",
+		"&e  If hollow is given and is \"yes\", then the circle",
+		"&e  will be hollow.",
+	}
+};
+
 /*########################################################################################################################*
 *-------------------------------------------------------ReplaceCommand-----------------------------------------------------*
 *#########################################################################################################################*/
@@ -964,6 +1067,7 @@ static void OnInit(void) {
 	Commands_Register(&PlaceCommand);
 	Commands_Register(&BlockEditCommand);
 	Commands_Register(&CuboidCommand);
+	Commands_Register(&SphereCommand);
 	Commands_Register(&ReplaceCommand);
 	//Commands_Register(&HacksCommand);
 }
