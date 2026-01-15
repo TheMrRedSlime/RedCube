@@ -726,7 +726,7 @@ static struct ChatCommand PlayerTeleportCommand = {
 *------------------------------------------------------AllHaxCommand----------------------------------------------------*
 *#########################################################################################################################*/
 static void HacksCommand_Execute(const cc_string* args, int argsCount) {
-	if(hacks){
+/*	if(hacks){
 		Entities.CurPlayer->Hacks.CanAnyHacks = false;
 		Entities.CurPlayer->Hacks.CanNoclip = false;
 		Entities.CurPlayer->Hacks.CanDoubleJump = false;
@@ -747,17 +747,17 @@ static void HacksCommand_Execute(const cc_string* args, int argsCount) {
 		Entities.CurPlayer->Hacks.CanSeeAllNames = true;
 		Chat_AddRaw("&eHacks: &aTrue");
 	}
-	hacks = !hacks;
+	hacks = !hacks; */
 }
 
-static struct ChatCommand HacksCommand = {
+/*static struct ChatCommand HacksCommand = {
 	"allhax", HacksCommand_Execute,
 	0,
 	{
 		"&a/client allhax",
 		"&eBypasses server-side restrictions to enable hacks",
 	}
-};
+}; */
 
 /*########################################################################################################################*
 *------------------------------------------------------BlockEditCommand----------------------------------------------------*
@@ -965,7 +965,7 @@ static void OnInit(void) {
 	Commands_Register(&BlockEditCommand);
 	Commands_Register(&CuboidCommand);
 	Commands_Register(&ReplaceCommand);
-	Commands_Register(&HacksCommand);
+	//Commands_Register(&HacksCommand);
 }
 
 static void OnFree(void) {
