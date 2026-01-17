@@ -538,6 +538,7 @@ void CuboidCommand_Draw(IVec3 min, IVec3 max) {
 	args->min = min;
 	args->max = max;
 	args->toPlace = toPlace;
+	Entities.CurPlayer->Hacks.Flying = true;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Cuboid_DrawThread, args);
@@ -559,7 +560,7 @@ static void CuboidCommand_Execute(const cc_string* args, int argsCount) {
 		cuboid_block = DrawOpCommand_ParseBlock(&value);
 		if (cuboid_block == -1) return;
 	}
-	Entities.CurPlayer->Hacks.Flying = true;
+
 	DrawOpCommand_Begin();
 }
 
@@ -616,6 +617,11 @@ static void* Sphere_DrawThread(void* arg) {
                 struct Entity* e = &Entities.CurPlayer->Base;
                 struct LocationUpdate update;
 
+				struct timespec current_req = req;
+				while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
+					req = rem;
+				}
+
                 Game_ChangeBlock(x, y, z, toPlace);
 
                 cc_bool foundNext = false;
@@ -633,10 +639,6 @@ static void* Sphere_DrawThread(void* arg) {
                                 update.pos   = nextV;
                                 e->VTABLE->SetLocation(e, &update);
                                 e->VTABLE->Tick(e, 0.0f);
-								struct timespec current_req = req;
-				                while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
-                				    req = rem;
-			                	}
                                 foundNext = true;
                                 break;
                             }
