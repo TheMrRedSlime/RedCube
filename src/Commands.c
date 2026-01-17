@@ -480,6 +480,7 @@ static void* Cuboid_DrawThread(void* arg) {
 	//30 MS should be fine for safe input
 	struct timespec req = { 0, 100000000L };
 	struct timespec breq = { 0, 50000000L };
+	int blocks = 0;
 	struct timespec rem;
 
 
@@ -520,6 +521,7 @@ static void* Cuboid_DrawThread(void* arg) {
 							}
 
 							Game_ChangeBlock(curX, curY, curZ, toPlace);
+							blocks++;
 						}
 					}
 				}
@@ -527,6 +529,7 @@ static void* Cuboid_DrawThread(void* arg) {
 			}
 		}
 	}
+	Chat_Add1("&aCuboid Complete, Filled! &e%i &ablocks!", &blocks);
 	return NULL;
 }
 
