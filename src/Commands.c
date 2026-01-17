@@ -1,5 +1,6 @@
 #include "Commands.h"
 #include "Chat.h"
+#include "Constants.h"
 #include "Core.h"
 #include "Protocol.h"
 #include "String.h"
@@ -477,8 +478,8 @@ static void* Cuboid_DrawThread(void* arg) {
 	free(p);
 	// The maximum MCGalaxy can allow is 200 blocks / 5 seconds (so 40 B/S) which is roughly 25ms for 40 B/S
 	//30 MS should be fine for safe input
-	//However apparently 7500ns somehow works and is enough for the server to be like **ok works**
-	struct timespec req = { 0, 75000L };
+	struct timespec req = { 0, 100000000L };
+	struct timespec breq = { 0, 20000000L };
 	struct timespec rem;
 
 
@@ -486,20 +487,43 @@ static void* Cuboid_DrawThread(void* arg) {
 	for (y = min.y; y <= max.y; y++) {
 		for (z = min.z; z <= max.z; z++) {
 			for (x = min.x; x <= max.x; x++) {
-				if(World_GetBlock(x,y,z) == toPlace) continue;
+				if (World_GetBlock(x, y, z) == toPlace) continue;
+
 				struct Entity* e = &Entities.CurPlayer->Base;
 				struct LocationUpdate update;
-				Vec3 v;
-				v.x = x;
-				v.y = y;
-				v.z = z;
+
 				update.flags = LU_HAS_POS;
-				update.pos   = v;
+				update.pos.x = (float)x; update.pos.y = (float)y; update.pos.z = (float)z;
 				e->VTABLE->SetLocation(e, &update);
-				while (nanosleep(&req, &rem) == -1 && errno == EINTR) {
-			    	req = rem;
+				e->VTABLE->Tick(e, 0.0f);
+				
+				struct timespec current_req = req;
+				while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
+					current_req = rem;
 				}
-				Game_ChangeBlock(x, y, z, toPlace);
+
+
+				// this is a fucking 2x2x2 shit i had to code since im dying
+				for (int dy = 0; dy <= 1; dy++) {
+					for (int dz = 0; dz <= 1; dz++) {
+						for (int dx = 0; dx <= 1; dx++) {
+							int curX = x + dx, curY = y + dy, curZ = z + dz;
+
+							if (curX < min.x || curX > max.x || 
+								curY < min.y || curY > max.y || 
+								curZ < min.z || curZ > max.z) continue;
+
+							if (World_GetBlock(curX, curY, curZ) == toPlace) continue;
+							struct timespec current_req = breq;
+							while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
+								current_req = rem;
+							}
+
+							Game_ChangeBlock(curX, curY, curZ, toPlace);
+						}
+					}
+				}
+
 			}
 		}
 	}
@@ -566,7 +590,7 @@ static void* Sphere_DrawThread(void* arg) {
 	IVec3 min = p->min, max = p->max;
 	BlockID toPlace = p->toPlace;
 	free(p);
-	struct timespec req = { 0, 75000L };
+	struct timespec req = { 0, 100000000L };
 	struct timespec rem;
 
 	//math is scary pls help
@@ -581,32 +605,52 @@ static void* Sphere_DrawThread(void* arg) {
 
 	float x, y, z;
 	for (y = min.y; y <= max.y; y++) {
-		for (z = min.z; z <= max.z; z++) {
-			for (x = min.x; x <= max.x; x++) {
+        for (z = min.z; z <= max.z; z++) {
+            for (x = min.x; x <= max.x; x++) {
                 float dx = (x - cx) / rx;
                 float dy = (y - cy) / ry;
                 float dz = (z - cz) / rz;
-
                 if ((dx*dx + dy*dy + dz*dz) > 1.0f) continue;
+                if (World_GetBlock(x, y, z) == toPlace) continue;
 
-				if(World_GetBlock(x,y,z) == toPlace) continue;
-				struct Entity* e = &Entities.CurPlayer->Base;
-				struct LocationUpdate update;
-				Vec3 v;
-				v.x = x;
-				v.y = y;
-				v.z = z;
-				update.flags = LU_HAS_POS;
-				update.pos   = v;
-				e->VTABLE->SetLocation(e, &update);
-				while (nanosleep(&req, &rem) == -1 && errno == EINTR) {
-			    	req = rem;
-				}
-				Game_ChangeBlock(x, y, z, toPlace);
-			}
-		}
-	}
-	return NULL;
+                struct Entity* e = &Entities.CurPlayer->Base;
+                struct LocationUpdate update;
+
+                Game_ChangeBlock(x, y, z, toPlace);
+
+                cc_bool foundNext = false;
+                int nx = x + 1, nz = z, ny = y;
+
+                for (; ny <= max.y; ny++) {
+                    for (; nz <= max.z; nz++) {
+                        for (; nx <= max.x; nx++) {
+                            float ndx = (nx - cx) / rx;
+                            float ndy = (ny - cy) / ry;
+                            float ndz = (nz - cz) / rz;
+                            if ((ndx*ndx + ndy*ndy + ndz*ndz) <= 1.0f && World_GetBlock(nx, ny, nz) != toPlace) {
+                                Vec3 nextV = { (float)nx, (float)ny, (float)nz };
+                                update.flags = LU_HAS_POS;
+                                update.pos   = nextV;
+                                e->VTABLE->SetLocation(e, &update);
+                                e->VTABLE->Tick(e, 0.0f);
+								struct timespec current_req = req;
+				                while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
+                				    req = rem;
+			                	}
+                                foundNext = true;
+                                break;
+                            }
+                        }
+                        if (foundNext) break;
+                        nx = min.x;
+                    }
+                    if (foundNext) break;
+                    nz = min.z;
+                }
+
+            }
+        }
+    }
 }
 
 void SphereCommand_Draw(IVec3 min, IVec3 max) {
@@ -664,7 +708,7 @@ static void ReplaceCommand_Draw(IVec3 min, IVec3 max) {
 
 	source  = (BlockID)replace_source;
 	toPlace = (BlockID)replace_target;
-	struct timespec req = { 0, 75000L };
+	struct timespec req = { 0, 100000000L };
 	struct timespec rem;
 	
 	if (replace_target == -1) toPlace = Inventory_SelectedBlock;
@@ -1073,7 +1117,7 @@ static void OnInit(void) {
 	Commands_Register(&CuboidCommand);
 	Commands_Register(&SphereCommand);
 	Commands_Register(&ReplaceCommand);
-	Commands_Register(&HacksCommand);
+	//Commands_Register(&HacksCommand);
 }
 
 static void OnFree(void) {
