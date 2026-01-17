@@ -479,7 +479,7 @@ static void* Cuboid_DrawThread(void* arg) {
 	// The maximum MCGalaxy can allow is 200 blocks / 5 seconds (so 40 B/S) which is roughly 25ms for 40 B/S
 	//30 MS should be fine for safe input
 	struct timespec req = { 0, 100000000L };
-	struct timespec breq = { 0, 50000000L };
+	struct timespec breq = { 0, 20000000L };
 	int blocks = 0;
 	struct timespec rem;
 
