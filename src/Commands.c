@@ -663,6 +663,7 @@ void SphereCommand_Draw(IVec3 min, IVec3 max) {
 	args->min = min;
 	args->max = max;
 	args->toPlace = toPlace;
+	Entities.CurPlayer->Hacks.Flying = true;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Sphere_DrawThread, args);
@@ -683,7 +684,6 @@ static void SphereCommand_Execute(const cc_string* args, int argsCount) {
 		sphere_block = DrawOpCommand_ParseBlock(&value);
 		if (sphere_block == -1) return;
 	}
-	Entities.CurPlayer->Hacks.Flying = true;
 	DrawOpCommand_Begin();
 }
 
@@ -749,6 +749,7 @@ static void ReplaceCommand_Execute(const cc_string* args, int argsCount) {
 	
 	DrawOpCommand_ExtractPersistArg(&value);
 	replace_target = -1; /* Default to replacing with currently held block */
+	Entities.CurPlayer->Hacks.Flying = true;
 
 	if (!value.length) {
 		Chat_AddRaw("&eReplace: &cAt least one argument is required"); return;
