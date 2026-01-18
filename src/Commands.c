@@ -468,6 +468,7 @@ static int DrawOpCommand_ParseBlock(const cc_string* arg) {
 
 static int cuboid_block;
 static int blockz = 0;
+static int killswitch = 0;
 typedef struct {
 	IVec3 min, max;
 	BlockID toPlace;
@@ -517,6 +518,10 @@ static void* Cuboid_DrawThread(void* arg) {
 								curZ < min.z || curZ > max.z) continue;
 
 							if (World_GetBlock(curX, curY, curZ) == toPlace) continue;
+							if (killswitch % 2 == 0) {
+								killswitch = 0;
+								return NULL;
+							}
 							struct timespec current_req = breq;
 							while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
 								current_req = rem;
@@ -549,6 +554,7 @@ void CuboidCommand_Draw(IVec3 min, IVec3 max) {
 	args->max = max;
 	args->toPlace = toPlace;
 	Entities.CurPlayer->Hacks.Flying = true;
+	killswitch++;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Cuboid_DrawThread, args);
@@ -628,6 +634,11 @@ static void* Sphere_DrawThread(void* arg) {
                 struct Entity* e = &Entities.CurPlayer->Base;
                 struct LocationUpdate update;
 
+				if (killswitch % 2 == 0) {
+					killswitch = 0;
+					return NULL;
+				}
+
 				struct timespec current_req = req;
 				while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
 					req = rem;
@@ -676,6 +687,7 @@ void SphereCommand_Draw(IVec3 min, IVec3 max) {
 	args->max = max;
 	args->toPlace = toPlace;
 	Entities.CurPlayer->Hacks.Flying = true;
+	killswitch++;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Sphere_DrawThread, args);
@@ -760,6 +772,10 @@ static void* Pyramid_DrawThread(void* arg) {
                     update.pos   = nextV;
 					struct timespec current_req = req;
 					e->VTABLE->SetLocation(e, &update);
+					if (killswitch % 2 == 0) {
+						killswitch = 0;
+						return NULL;
+					}
 					while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) current_req = rem;
 					Game_ChangeBlock(x, y, z, toPlace);
 				}
@@ -778,6 +794,7 @@ void PyramidCommand_Draw(IVec3 min, IVec3 max) {
 	args->max = max;
 	args->toPlace = toPlace;
 	Entities.CurPlayer->Hacks.Flying = true;
+	killswitch++;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Pyramid_DrawThread, args);
