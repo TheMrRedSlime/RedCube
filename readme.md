@@ -138,6 +138,15 @@ Install SDL2 port if needed
 
 #### Web
 
-```emcc *.c -s ALLOW_MEMORY_GROWTH=1 --js-library interop_web.js```
+```
+emcc *.c -s ALLOW_MEMORY_GROWTH=1 \
+        -s STACK_SIZE=512MB \
+        -s EXPORTED_RUNTIME_METHODS=['print','UTF8ToString','stringToUTF8','addFunction'] \
+        -s EXPORT_ALL=1 \
+        --js-library interop_web.js \
+        -o a.out.js
+```
+
+WEB AT https://themrredslime.site/redcube.html
 
 The generated javascript file has some issues. [See here for how to fix](doc/compile-fixes.md#webclient-patches)
