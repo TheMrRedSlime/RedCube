@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include "math.h"
 
 #define COMMANDS_PREFIX "/client"
 #define COMMANDS_PREFIX_SPACE "/client "
@@ -663,6 +664,7 @@ static void* Sphere_DrawThread(void* arg) {
             }
         }
     }
+	return NULL;
 }
 
 void SphereCommand_Draw(IVec3 min, IVec3 max) {
@@ -702,12 +704,115 @@ static struct ChatCommand SphereCommand = {
 	COMMAND_FLAG_UNSPLIT_ARGS,
 	{
 		"&a/client Sphere [block]",
-		"&eFills the 3D rectangle between two points with [block].",
+		"&eFills the 3D Sphere between two points with [block].",
 		"&eIf no block is given, uses your currently held block.",
 		"&e  If hollow is given and is \"yes\", then the circle",
 		"&e  will be hollow.",
 	}
 };
+
+/*########################################################################################################################*
+*-------------------------------------------------------PyramidCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+static int pyramid_block;
+typedef struct {
+	IVec3 min, max;
+	BlockID toPlace;
+} PyramidDrawArgs;
+
+static void* Pyramid_DrawThread(void* arg) {
+	PyramidDrawArgs* p = (PyramidDrawArgs*)arg;
+	IVec3 min = p->min, max = p->max;
+	BlockID toPlace = p->toPlace;
+	free(p);
+	struct timespec req = { 0, 100000000L };
+	struct timespec rem;
+
+
+	//math is scary pls help
+	float x,y,z;
+	float cx = (min.x + max.x) / 2.0f;
+    float cy = (min.y + max.y) / 2.0f;
+    float cz = (min.z + max.z) / 2.0f;
+	float width  = max.x - min.x;
+	float depth  = max.z - min.z;
+	float height = max.y - min.y;
+
+	for (y = min.y; y <= max.y; y++) {
+		float h_percent = (y - min.y) / height;
+		
+		float shrink = 1.0f - h_percent;
+		float current_rx = (width / 2.0f) * shrink;
+		float current_rz = (depth / 2.0f) * shrink;
+
+		for (z = min.z; z <= max.z; z++) {
+			for (x = min.x; x <= max.x; x++) {
+				float dx = fabsf(x - cx);
+				float dz = fabsf(z - cz);
+
+				if (dx <= current_rx && dz <= current_rz) {
+					if (World_GetBlock(x, y, z) == toPlace) continue;
+					struct Entity* e = &Entities.CurPlayer->Base;
+                    struct LocationUpdate update;
+                    Vec3 nextV = { (float)x, (float)y, (float)z };
+                    update.flags = LU_HAS_POS;
+                    update.pos   = nextV;
+					struct timespec current_req = req;
+					e->VTABLE->SetLocation(e, &update);
+					while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) current_req = rem;
+					Game_ChangeBlock(x, y, z, toPlace);
+				}
+			}
+		}
+	}
+	return NULL;
+}
+
+void PyramidCommand_Draw(IVec3 min, IVec3 max) {
+	BlockID toPlace = (BlockID)pyramid_block;
+	if (pyramid_block == -1) toPlace = Inventory_SelectedBlock;
+
+	PyramidDrawArgs* args = malloc(sizeof(PyramidDrawArgs));
+	args->min = min;
+	args->max = max;
+	args->toPlace = toPlace;
+	Entities.CurPlayer->Hacks.Flying = true;
+
+	pthread_t tid;
+	pthread_create(&tid, NULL, Pyramid_DrawThread, args);
+	pthread_detach(tid);
+}
+
+
+static void PyramidCommand_Execute(const cc_string* args, int argsCount) {
+	cc_string value = *args;
+
+	DrawOpCommand_ResetState();
+	drawOp_name = "Pyramid";
+	drawOp_Func = PyramidCommand_Draw;
+
+	pyramid_block = -1; /* Default to cuboiding with currently held block */
+
+	if (value.length) {
+		pyramid_block = DrawOpCommand_ParseBlock(&value);
+		if (pyramid_block == -1) return;
+	}
+	DrawOpCommand_Begin();
+}
+
+static struct ChatCommand PyramidCommand = {
+	"Pyramid", PyramidCommand_Execute,
+	COMMAND_FLAG_UNSPLIT_ARGS,
+	{
+		"&a/client Pyramid [block]",
+		"&eFills the 3D Pyramid between two points with [block].",
+		"&eIf no block is given, uses your currently held block.",
+		"&e  If hollow is given and is \"yes\", then the circle",
+		"&e  will be hollow.",
+	}
+};
+
 
 /*########################################################################################################################*
 *-------------------------------------------------------ReplaceCommand-----------------------------------------------------*
@@ -1129,6 +1234,7 @@ static void OnInit(void) {
 	Commands_Register(&BlockEditCommand);
 	Commands_Register(&CuboidCommand);
 	Commands_Register(&SphereCommand);
+	Commands_Register(&PyramidCommand);
 	Commands_Register(&ReplaceCommand);
 	//Commands_Register(&HacksCommand);
 }
