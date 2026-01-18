@@ -974,7 +974,7 @@ static void PlayerTeleportCommand_Execute(const cc_string* args, int argsCount) 
 		return;
 	}
 	
-	Chat_Add1("&eTeleporting to %s", &target);
+	Chat_Add1("&eTeleporting to &a%s", &target);
 
 	for (int i = 0; i < ENTITIES_MAX_COUNT; i++){
 		struct Entity* e = Entities.List[i];
@@ -994,7 +994,7 @@ static void PlayerTeleportCommand_Execute(const cc_string* args, int argsCount) 
 			 update.pos = v;
 			 ep->VTABLE->SetLocation(ep, &update);
 			 found = true;
-			 Chat_Add1("&aTeleported to %s", &name);
+			 Chat_Add1("&aTeleported to &e%s", &name);
 			 break;
 		}
 	}
@@ -1010,6 +1010,81 @@ static struct ChatCommand PlayerTeleportCommand = {
 	{
 		"&a/client tpp [name]",
 		"&eTeleports you to a Player.",
+	}
+};
+
+/*########################################################################################################################*
+*-------------------------------------------------------FollowCommand-----------------------------------------------------*
+*#########################################################################################################################*/
+
+static struct Entity* follow_target = NULL;
+static cc_bool is_following = false;
+static volatile int follow_version = 0;
+
+static void* Follow_Thread(void* arg) {
+    struct Entity* target = (struct Entity*)arg;
+    int my_version = follow_version;
+    
+    struct timespec req = { 0, 100000000L };
+    struct timespec rem;
+
+    while (my_version == follow_version) {
+        struct Entity* player = &Entities.CurPlayer->Base;
+        
+        float dx = player->Position.x - target->Position.x;
+        float dy = player->Position.y - target->Position.y;
+        float dz = player->Position.z - target->Position.z;
+        
+        if ((dx*dx + dy*dy + dz*dz) > 0.001f) {
+            struct LocationUpdate update = { .flags = LU_HAS_POS, .pos = target->Position };
+            player->VTABLE->SetLocation(player, &update);
+        }
+
+        nanosleep(&req, &rem);
+    }
+    return NULL;
+}
+
+static void FollowCommand_Execute(const cc_string* args, int argsCount) {
+    follow_version++;
+
+    if (argsCount != 1) {
+        Chat_AddRaw("&eFollow stopped.");
+        return;
+    }
+
+    cc_string targetName = args[0];
+    struct Entity* target = NULL;
+
+    for (int i = 0; i < ENTITIES_MAX_COUNT; i++) {
+        struct Entity* e = Entities.List[i];
+        if (!e || e == &Entities.CurPlayer->Base) continue;
+
+        cc_string name = String_FromReadonly(e->NameRaw);
+        name = StripColorPrefix(&name);
+
+        if (String_CaselessEquals(&name, &targetName)) {
+            target = e;
+            break;
+        }
+    }
+
+    if (target) {
+        pthread_t tid;
+        pthread_create(&tid, NULL, Follow_Thread, target);
+        pthread_detach(tid);
+        Chat_Add1("&eFollowing &a%s", &targetName);
+    } else {
+        Chat_AddRaw("&cPlayer Not Found");
+    }
+}
+
+static struct ChatCommand FollowCommand = {
+	"Follow", FollowCommand_Execute,
+	0,
+	{
+		"&a/client Follow [name]",
+		"&eFollow's a Player.",
 	}
 };
 
@@ -1251,6 +1326,7 @@ static void OnInit(void) {
 	Commands_Register(&SkinCommand);
 	Commands_Register(&TeleportCommand);
 	Commands_Register(&PlayerTeleportCommand);
+	Commands_Register(&FollowCommand);
 	Commands_Register(&ClearDeniedCommand);
 	Commands_Register(&MotdCommand);
 	Commands_Register(&PlaceCommand);
