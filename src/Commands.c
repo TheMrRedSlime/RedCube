@@ -468,7 +468,7 @@ static int DrawOpCommand_ParseBlock(const cc_string* arg) {
 
 static int cuboid_block;
 static int blockz = 0;
-static int killswitch = 0;
+static volatile int killswitch = 0;
 typedef struct {
 	IVec3 min, max;
 	BlockID toPlace;
@@ -554,7 +554,6 @@ void CuboidCommand_Draw(IVec3 min, IVec3 max) {
 	args->max = max;
 	args->toPlace = toPlace;
 	Entities.CurPlayer->Hacks.Flying = true;
-	killswitch++;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Cuboid_DrawThread, args);
@@ -564,6 +563,8 @@ void CuboidCommand_Draw(IVec3 min, IVec3 max) {
 
 static void CuboidCommand_Execute(const cc_string* args, int argsCount) {
 	cc_string value = *args;
+	killswitch++;
+	if (killswitch % 2 == 0) return;
 
 	DrawOpCommand_ResetState();
 	drawOp_name = "Cuboid";
@@ -687,7 +688,6 @@ void SphereCommand_Draw(IVec3 min, IVec3 max) {
 	args->max = max;
 	args->toPlace = toPlace;
 	Entities.CurPlayer->Hacks.Flying = true;
-	killswitch++;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Sphere_DrawThread, args);
@@ -697,6 +697,8 @@ void SphereCommand_Draw(IVec3 min, IVec3 max) {
 
 static void SphereCommand_Execute(const cc_string* args, int argsCount) {
 	cc_string value = *args;
+	killswitch++;
+	if (killswitch % 2 == 0) return;
 
 	DrawOpCommand_ResetState();
 	drawOp_name = "Sphere";
@@ -794,7 +796,6 @@ void PyramidCommand_Draw(IVec3 min, IVec3 max) {
 	args->max = max;
 	args->toPlace = toPlace;
 	Entities.CurPlayer->Hacks.Flying = true;
-	killswitch++;
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, Pyramid_DrawThread, args);
@@ -804,6 +805,8 @@ void PyramidCommand_Draw(IVec3 min, IVec3 max) {
 
 static void PyramidCommand_Execute(const cc_string* args, int argsCount) {
 	cc_string value = *args;
+	killswitch++;
+	if (killswitch % 2 == 0) return;
 
 	DrawOpCommand_ResetState();
 	drawOp_name = "Pyramid";
