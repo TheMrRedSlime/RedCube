@@ -484,6 +484,7 @@ static void* Cuboid_DrawThread(void* arg) {
 	struct timespec req = { 0, 100000000L };
 	struct timespec breq = { 0, 20000000L };
 	blockz = 0;
+	int thisswitch = killswitch;
 	struct timespec rem;
 
 
@@ -518,7 +519,7 @@ static void* Cuboid_DrawThread(void* arg) {
 								curZ < min.z || curZ > max.z) continue;
 
 							if (World_GetBlock(curX, curY, curZ) == toPlace) continue;
-							if (killswitch % 2 == 0) {
+							if (killswitch != thisswitch){
 								killswitch = 0;
 								return NULL;
 							}
@@ -611,6 +612,7 @@ static void* Sphere_DrawThread(void* arg) {
 	free(p);
 	struct timespec req = { 0, 100000000L };
 	struct timespec rem;
+	int thisswitch = killswitch;
 
 	//math is scary pls help
 	float cx = (min.x + max.x) / 2.0f;
@@ -635,11 +637,11 @@ static void* Sphere_DrawThread(void* arg) {
                 struct Entity* e = &Entities.CurPlayer->Base;
                 struct LocationUpdate update;
 
-				if (killswitch % 2 == 0) {
+				if (killswitch != thisswitch){
 					killswitch = 0;
 					return NULL;
 				}
-
+				
 				struct timespec current_req = req;
 				while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) {
 					req = rem;
@@ -742,6 +744,7 @@ static void* Pyramid_DrawThread(void* arg) {
 	free(p);
 	struct timespec req = { 0, 100000000L };
 	struct timespec rem;
+	int thisswitch = killswitch;
 
 
 	//math is scary pls help
@@ -774,10 +777,10 @@ static void* Pyramid_DrawThread(void* arg) {
                     update.pos   = nextV;
 					struct timespec current_req = req;
 					e->VTABLE->SetLocation(e, &update);
-					if (killswitch % 2 == 0) {
-						killswitch = 0;
-						return NULL;
-					}
+					if (killswitch != thisswitch){
+							killswitch = 0;
+							return NULL;
+						}
 					while (nanosleep(&current_req, &rem) == -1 && errno == EINTR) current_req = rem;
 					Game_ChangeBlock(x, y, z, toPlace);
 				}
