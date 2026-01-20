@@ -18,6 +18,8 @@ Copyright 2014-2023 ClassiCube | Licensed under BSD-3
 /* Constant string that points to NULL and has 0 length. */
 /* NOTE: Do NOT modify the contents of this string! */
 extern const cc_string String_Empty;
+/* Custom Check if String is Blank*/
+CC_API cc_bool String_IsBlank(const cc_string* str);
 /* Constructs a string from the given arguments. */
 static CC_INLINE cc_string String_Init(STRING_REF char* buffer, int length, int capacity) {
 	cc_string s; s.buffer = buffer; s.length = length; s.capacity = capacity; return s;

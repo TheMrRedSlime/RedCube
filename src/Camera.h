@@ -12,6 +12,7 @@ struct Camera;
 struct IGameComponent;
 struct LocalPlayer;
 extern struct IGameComponent Camera_Component;
+extern cc_bool cam_useOverride;
 
 /* Shared data for cameras. */
 CC_VAR extern struct _CameraData {
@@ -76,6 +77,8 @@ struct Camera {
 
 /* Switches to next camera in the list of cameras. */
 void Camera_CycleActive(void);
+/* let thy be public*/
+void Camera_SetViewPos(float x, float y, float z);
 /* Registers a camera for use. */
 CC_API void Camera_Register(struct Camera* camera);
 /* Checks whether camera is still focused or not. */

@@ -1,6 +1,7 @@
 #ifndef CC_COMMANDS_H
 #define CC_COMMANDS_H
 #include "Core.h"
+#include "Entity.h"
 CC_BEGIN_HEADER
 
 /* Executes actions in response to certain chat input
@@ -8,7 +9,8 @@ CC_BEGIN_HEADER
 */
 struct IGameComponent;
 extern struct IGameComponent Commands_Component;
-
+extern cc_bool freecamEnabled;
+extern struct Entity* view_username;
 cc_bool Commands_Execute(const cc_string* input);
 
 /* This command is only available in singleplayer */

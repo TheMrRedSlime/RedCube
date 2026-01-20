@@ -1,4 +1,5 @@
 #include "Commands.h"
+#include "Camera.h"
 #include "Chat.h"
 #include "Constants.h"
 #include "Core.h"
@@ -30,6 +31,8 @@
 static struct ChatCommand* cmds_head;
 static struct ChatCommand* cmds_tail;
 static cc_bool hacks=false;
+cc_bool freecamEnabled=false;
+struct Entity* view_username;
 
 void Commands_Register(struct ChatCommand* cmd) {
 	LinkedList_Append(cmd, cmds_head, cmds_tail);
@@ -1013,6 +1016,84 @@ static struct ChatCommand PlayerTeleportCommand = {
 	}
 };
 
+
+/*########################################################################################################################*
+*-----------------------------------------------------PlayerViewCommand---------------------------------------------------*
+*#########################################################################################################################*/
+
+static void PlayerViewCommand_Execute(const cc_string* args, int argsCount) {
+    cc_string target = args[0];
+    cc_bool found = false;
+	cc_string puser = String_FromReadonly(Entities.CurPlayer->Base.NameRaw);
+
+    if (argsCount == 0) {
+        cam_useOverride = false; // Disable viewing if no name provided
+        Chat_AddRaw("&eViewing disabled.");
+        return;
+    }
+
+	if(String_CaselessEquals(&puser, &target)){
+		Chat_AddRaw("&cYou cannot put your own username!");
+		return;
+	}
+
+    for (int i = 0; i < ENTITIES_MAX_COUNT; i++) {
+        struct Entity* e = Entities.List[i];
+        if (!e || e == &Entities.CurPlayer->Base) continue;
+
+        cc_string name = String_FromReadonly(e->NameRaw);
+        name = StripColorPrefix(&name);
+
+        if (String_CaselessEquals(&name, &target)) {
+            Camera_SetViewPos(e->Position.x, e->Position.y, e->Position.z);
+            view_username = e;
+            
+            found = true;
+            Chat_Add1("&aNow viewing &e%s", &name);
+            break;
+        }
+    }
+
+    if (!found) Chat_AddRaw("&cPlayer Not Found");
+}
+
+static struct ChatCommand PlayerViewCommand = {
+	"View", PlayerViewCommand_Execute,
+	0,
+	{
+		"&a/client view [name]",
+		"&eView a player.",
+	}
+};
+
+/*########################################################################################################################*
+*----------------------------------------------------PlayerFreeCamCommand-------------------------------------------------*
+*#########################################################################################################################*/
+
+
+static void PlayerFreeCamCommand_Execute(const cc_string* args, int argsCount) {
+    freecamEnabled = !freecamEnabled;
+
+    cam_useOverride = freecamEnabled; 
+
+    if (freecamEnabled) {
+        struct Entity* e = &Entities.CurPlayer->Base;
+        Camera_SetViewPos(e->Position.x, e->Position.y, e->Position.z);
+        Chat_AddRaw("&aFreecam &2Enabled");
+    } else {
+        Chat_AddRaw("&aFreecam &cDisabled");
+    }
+}
+
+static struct ChatCommand PlayerFreeCamCommand = {
+    "Freecam", PlayerFreeCamCommand_Execute,
+    0,
+    {
+        "&a/client Freecam",
+        "&eAllows you to fly the camera around freely.",
+    }
+};
+
 /*########################################################################################################################*
 *-------------------------------------------------------FollowCommand-----------------------------------------------------*
 *#########################################################################################################################*/
@@ -1327,6 +1408,8 @@ static void OnInit(void) {
 	Commands_Register(&TeleportCommand);
 	Commands_Register(&PlayerTeleportCommand);
 	Commands_Register(&FollowCommand);
+	Commands_Register(&PlayerFreeCamCommand);
+	Commands_Register(&PlayerViewCommand);
 	Commands_Register(&ClearDeniedCommand);
 	Commands_Register(&MotdCommand);
 	Commands_Register(&PlaceCommand);

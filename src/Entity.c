@@ -1,4 +1,5 @@
 #include "Entity.h"
+#include "Commands.h"
 #include "ExtMath.h"
 #include "World.h"
 #include "Block.h"
@@ -643,6 +644,11 @@ void LocalPlayer_SetInterpPosition(struct LocalPlayer* p, float t) {
 static void LocalPlayer_HandleInput(struct LocalPlayer* p, float* xMoving, float* zMoving) {
 	struct HacksComp* hacks = &p->Hacks;
 	struct LocalPlayerInput* input;
+	if (freecamEnabled) {
+		*xMoving = 0.0f;
+		*zMoving = 0.0f;
+		return;
+	}
 	if (Gui.InputGrab) return;
 
 	/* keyboard input, touch, joystick, etc */

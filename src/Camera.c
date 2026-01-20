@@ -1,6 +1,9 @@
 #include "Camera.h"
+#include "Commands.h"
+#include "Core.h"
 #include "ExtMath.h"
 #include "Game.h"
+#include "String.h"
 #include "Window.h"
 #include "Graphics.h"
 #include "Funcs.h"
@@ -17,6 +20,22 @@ struct _CameraData Camera;
 static struct RayTracer cameraClipPos;
 static Vec2 cam_rotOffset;
 static cc_bool cam_isForwardThird;
+static Vec3 cam_overridePos;
+cc_bool cam_useOverride;
+#define DEF_ZOOM 3.0f
+static float dist_third = DEF_ZOOM, dist_forward = DEF_ZOOM;
+
+
+void Camera_SetViewPos(float x, float y, float z) {
+    cam_overridePos.x = x;
+    cam_overridePos.y = y;
+    cam_overridePos.z = z;
+    cam_useOverride = true;
+
+	extern struct Camera cam_ThirdPerson;
+    Camera.Active = &cam_ThirdPerson;
+    Camera_UpdateProjection();
+}
 
 static struct CameraState {
 	float deltaX, deltaY;
@@ -41,6 +60,53 @@ void Camera_KeyLookUpdate(float delta) {
 	if (Bind_IsTriggered[BIND_LOOK_DOWN])  states[i].deltaY += amount;
 	if (Bind_IsTriggered[BIND_LOOK_LEFT])  states[i].deltaX -= amount;
 	if (Bind_IsTriggered[BIND_LOOK_RIGHT]) states[i].deltaX += amount;
+
+	if (cam_useOverride && freecamEnabled) {
+        float moveSpeed = 17.5f * delta;
+        struct Entity* e = &Entities.CurPlayer->Base;
+        Vec3 dir = Vec3_GetDirVector(e->Yaw * MATH_DEG2RAD, e->Pitch * MATH_DEG2RAD);
+		Vec3 right = Vec3_GetDirVector((e->Yaw - 90.0f) * MATH_DEG2RAD, 0.0f);
+
+        if (Bind_IsTriggered[BIND_FORWARD]) {
+            cam_overridePos.x += dir.x * moveSpeed;
+            cam_overridePos.y += dir.y * moveSpeed;
+            cam_overridePos.z += dir.z * moveSpeed;
+        }
+
+        if (Bind_IsTriggered[BIND_BACK]) {
+            cam_overridePos.x -= dir.x * moveSpeed;
+            cam_overridePos.y -= dir.y * moveSpeed;
+            cam_overridePos.z -= dir.z * moveSpeed;
+        }
+
+		if (Bind_IsTriggered[BIND_RIGHT]) {
+			cam_overridePos.x -= right.x * moveSpeed;
+			cam_overridePos.z -= right.z * moveSpeed;
+		}
+
+		if (Bind_IsTriggered[BIND_LEFT]) {
+			cam_overridePos.x += right.x * moveSpeed;
+			cam_overridePos.z += right.z * moveSpeed;
+		}
+
+		if (Bind_IsTriggered[BIND_SPEED]) cam_overridePos.y += moveSpeed;
+        if (Bind_IsTriggered[BIND_HALF_SPEED]) cam_overridePos.y -= moveSpeed;
+    }
+
+	if (cam_useOverride && view_username != NULL && !freecamEnabled) {
+		cam_overridePos = Entity_GetEyePosition(view_username);
+
+		if (Camera.Active->isThirdPerson) {
+			Vec2 rot = Camera.Active->GetOrientation();
+			Vec3 dir = Vec3_GetDirVector(rot.x, rot.y);
+			
+			float dist = cam_isForwardThird ? dist_forward : dist_third;
+
+			cam_overridePos.x -= dir.x * dist;
+			cam_overridePos.y -= dir.y * dist;
+			cam_overridePos.z -= dir.z * dist;
+		}
+	}
 }
 
 /*########################################################################################################################*
@@ -175,6 +241,8 @@ static Vec2 FirstPersonCamera_GetOrientation(void) {
 }
 
 static Vec3 FirstPersonCamera_GetPosition(float t) {
+	if (cam_useOverride) return cam_overridePos;
+
 	struct LocalPlayer* p = Entities.CurPlayer;
 	struct Entity* e = &p->Base;
 
@@ -202,8 +270,6 @@ static struct Camera cam_FirstPerson = {
 /*########################################################################################################################*
 *---------------------------------------------------Third person camera---------------------------------------------------*
 *#########################################################################################################################*/
-#define DEF_ZOOM 3.0f
-static float dist_third = DEF_ZOOM, dist_forward = DEF_ZOOM;
 
 static Vec2 ThirdPersonCamera_GetOrientation(void) {
 	struct LocalPlayer* p = Entities.CurPlayer;
@@ -227,6 +293,7 @@ static float ThirdPersonCamera_GetZoom(struct LocalPlayer* p) {
 }
 
 static Vec3 ThirdPersonCamera_GetPosition(float t) {
+	if (cam_useOverride) return cam_overridePos; // CMON THE VIEW COMMAND WILL BE MINE!
 	struct LocalPlayer* p = Entities.CurPlayer;
 	struct Entity* e = &p->Base;
 
@@ -254,7 +321,7 @@ static cc_bool ThirdPersonCamera_Zoom(float amount) {
 	return true;
 }
 
-static struct Camera cam_ThirdPerson = {
+struct Camera cam_ThirdPerson = {
 	true,
 	PerspectiveCamera_GetProjection,  PerspectiveCamera_GetView,
 	ThirdPersonCamera_GetOrientation, ThirdPersonCamera_GetPosition,

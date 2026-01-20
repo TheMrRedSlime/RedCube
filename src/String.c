@@ -119,6 +119,16 @@ int String_Equals(const cc_string* a, const cc_string* b) {
 	return a->length == b->length && Mem_Equal(a->buffer, b->buffer, a->length);
 } 
 
+cc_bool String_IsBlank(const cc_string* str) {
+	int i;
+	if (!str || !str->buffer || !str->length) return true;
+
+	for (i = 0; i < str->length; i++) {
+		if (str->buffer[i] != ' ') return false;
+	}
+	return true;
+}
+
 int String_CaselessEquals(const cc_string* a, const cc_string* b) {
 	int i;
 	char aCur, bCur;

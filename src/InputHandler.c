@@ -1,4 +1,5 @@
 #include "InputHandler.h"
+#include "Commands.h"
 #include "Input.h"
 #include "String.h"
 #include "Event.h"
