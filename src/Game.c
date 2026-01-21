@@ -60,6 +60,7 @@ cc_bool Game_ClassicMode, Game_ClassicHacks;
 cc_bool Game_AllowCustomBlocks;
 cc_bool Game_AllowServerTextures;
 cc_bool Game_Anaglyph3D;
+static cc_bool wasFocused = true;
 
 cc_bool Game_ViewBobbing, Game_HideGui;
 cc_bool Game_BreakableLiquids, Game_ScreenshotRequested;
@@ -782,7 +783,14 @@ static CC_INLINE void Game_RenderFrame(void) {
 	Camera.Active->UpdateMouse(Entities.CurPlayer, delta);
 #endif
 
-	if (!Window_Main.Focused && !Gui.InputGrab) Gui_ShowPauseMenu();
+	if (!Window_Main.Focused && !Gui.InputGrab) {
+		Game_SetFpsLimit(1);
+		wasFocused = Window_Main.Focused;
+		Gui_ShowPauseMenu();
+	} else if (Window_Main.Focused && !wasFocused){
+		Game_SetFpsLimit(Options_GetEnum(OPT_FPS_LIMIT, 0, FpsLimit_Names, FPS_LIMIT_COUNT));
+		wasFocused = Window_Main.Focused;
+	}
 
 	if (Bind_IsTriggered[BIND_ZOOM_SCROLL] && !Gui.InputGrab) {
 		InputHandler_SetFOV(Camera.ZoomFov);
