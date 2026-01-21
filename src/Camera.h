@@ -14,6 +14,18 @@ struct LocalPlayer;
 extern struct IGameComponent Camera_Component;
 extern cc_bool cam_useOverride;
 
+#ifdef CC_BUILD_SPLITSCREEN
+#define MAX_LOCAL_PLAYERS 4
+#else
+#define MAX_LOCAL_PLAYERS 1
+#endif
+
+typedef struct {
+    float deltaX, deltaY;
+} CameraState;
+
+extern CameraState states[MAX_LOCAL_PLAYERS];
+
 /* Shared data for cameras. */
 CC_VAR extern struct _CameraData {
 	/* How sensitive camera is to movements of mouse. */

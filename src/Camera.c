@@ -37,9 +37,7 @@ void Camera_SetViewPos(float x, float y, float z) {
     Camera_UpdateProjection();
 }
 
-static struct CameraState {
-	float deltaX, deltaY;
-} states[MAX_LOCAL_PLAYERS];
+CameraState states[MAX_LOCAL_PLAYERS];
 
 static void Camera_OnRawMovement(float deltaX, float deltaY, int deviceIndex) {
 	int i = Game_MapState(deviceIndex);
@@ -48,13 +46,13 @@ static void Camera_OnRawMovement(float deltaX, float deltaY, int deviceIndex) {
 }
 
 void Camera_KeyLookUpdate(float delta) {
-	float amount;
-	int i;
+	float amount = (Camera.Sensitivity / 100.0f) * (1000 * delta);;
+	int i = Game.CurrentState;
+	if(!Window_Main.Focused) states[i].deltaX += amount;
 	if (Gui.InputGrab) return;
 
+
 	/* divide by 25 to have reasonable sensitivity for default mouse sens */
-	amount = (Camera.Sensitivity / 25.0f) * (1000 * delta);
-	i = Game.CurrentState;
 
 	if (Bind_IsTriggered[BIND_LOOK_UP])    states[i].deltaY -= amount;
 	if (Bind_IsTriggered[BIND_LOOK_DOWN])  states[i].deltaY += amount;

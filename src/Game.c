@@ -60,7 +60,7 @@ cc_bool Game_ClassicMode, Game_ClassicHacks;
 cc_bool Game_AllowCustomBlocks;
 cc_bool Game_AllowServerTextures;
 cc_bool Game_Anaglyph3D;
-static cc_bool wasFocused = true;
+cc_bool wasFocused = true;
 
 cc_bool Game_ViewBobbing, Game_HideGui;
 cc_bool Game_BreakableLiquids, Game_ScreenshotRequested;
