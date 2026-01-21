@@ -1078,7 +1078,7 @@ static void PlayerFreeCamCommand_Execute(const cc_string* args, int argsCount) {
 
     if (freecamEnabled) {
         struct Entity* e = &Entities.CurPlayer->Base;
-        Camera_SetViewPos(e->Position.x, e->Position.y, e->Position.z);
+        Camera_SetViewPos(e->Position.x, e->Position.y+2.5, e->Position.z);
         Chat_AddRaw("&aFreecam &2Enabled");
     } else {
         Chat_AddRaw("&aFreecam &cDisabled");
