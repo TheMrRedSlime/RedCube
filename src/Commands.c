@@ -30,7 +30,7 @@
 #define COMMANDS_PREFIX_SPACE "/client "
 static struct ChatCommand* cmds_head;
 static struct ChatCommand* cmds_tail;
-static cc_bool hacks=false;
+cc_bool hackz=false;
 cc_bool freecamEnabled=false;
 cc_string clickertype;
 cc_bool spinEnabled=true;
@@ -1243,28 +1243,12 @@ static struct ChatCommand FollowCommand = {
 *------------------------------------------------------AllHaxCommand----------------------------------------------------*
 *#########################################################################################################################*/
 static void HacksCommand_Execute(const cc_string* args, int argsCount) {
-	if(hacks){
-		Entities.CurPlayer->Hacks.CanAnyHacks = false;
-		Entities.CurPlayer->Hacks.CanNoclip = false;
-		Entities.CurPlayer->Hacks.CanDoubleJump = false;
-		Entities.CurPlayer->Hacks.CanFly = false;
-		Entities.CurPlayer->Hacks.CanPushbackBlocks = false;
-		Entities.CurPlayer->Hacks.CanSpeed = false;
-		Entities.CurPlayer->Hacks.CanUseThirdPerson = false;
-		Entities.CurPlayer->Hacks.CanSeeAllNames = false;
-		Chat_AddRaw("&eHacks: &aFalse");
+	hackz = !hackz; 
+	if (hackz) {
+		Chat_AddRaw("&aHacks Enabled");
 	} else {
-		Entities.CurPlayer->Hacks.CanAnyHacks = true;
-		Entities.CurPlayer->Hacks.CanNoclip = true;
-		Entities.CurPlayer->Hacks.CanDoubleJump = true;
-		Entities.CurPlayer->Hacks.CanFly = true;
-		Entities.CurPlayer->Hacks.CanPushbackBlocks = true;
-		Entities.CurPlayer->Hacks.CanSpeed = true;
-		Entities.CurPlayer->Hacks.CanUseThirdPerson = true;
-		Entities.CurPlayer->Hacks.CanSeeAllNames = true;
-		Chat_AddRaw("&eHacks: &aTrue");
+		Chat_AddRaw("&cHacks Disabled");
 	}
-	hacks = !hacks; 
 }
 
 static struct ChatCommand HacksCommand = {
@@ -1489,7 +1473,7 @@ static void OnInit(void) {
 	Commands_Register(&SphereCommand);
 	Commands_Register(&PyramidCommand);
 	Commands_Register(&ReplaceCommand);
-	//Commands_Register(&HacksCommand);
+	Commands_Register(&HacksCommand);
 }
 
 static void OnFree(void) {

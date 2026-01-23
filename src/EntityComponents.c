@@ -1,4 +1,5 @@
 #include "EntityComponents.h"
+#include "Core.h"
 #include "String.h"
 #include "ExtMath.h"
 #include "World.h"
@@ -10,6 +11,7 @@
 #include "Camera.h"
 #include "Funcs.h"
 #include "Graphics.h"
+#include "Commands.h"
 #include "Physics.h"
 #include "Model.h"
 #include "Audio.h"
@@ -209,7 +211,11 @@ static void HacksComp_ParseFlag(struct HacksComp* hacks, const char* include, co
 	if (String_ContainsConst(joined, include)) {
 		*target = true;
 	} else if (String_ContainsConst(joined, exclude)) {
-		*target = false;
+		if (hackz) {
+			*target = true;
+		} else {
+			*target = false;
+		}
 	}
 }
 
