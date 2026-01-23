@@ -1077,7 +1077,7 @@ static void SpinCommand_Execute(const cc_string* args, int argsCount) {
 
 
 static struct ChatCommand SpinCommand = {
-	"spin", SpinCommand_Execute,
+	"Spin", SpinCommand_Execute,
 	0,
 	{
 		"&a/client spin",
