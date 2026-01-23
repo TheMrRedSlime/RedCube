@@ -1069,9 +1069,9 @@ static struct ChatCommand AutoclickerCommand = {
 static void SpinCommand_Execute(const cc_string* args, int argsCount) {
 	spinEnabled = !spinEnabled;
 	if (spinEnabled) {
-		Chat_AddRaw("&cSpin Enabled!");
+		Chat_AddRaw("&aSpin Enabled!");
 	} else {
-		Chat_AddRaw("&aSpin Disabled.");
+		Chat_AddRaw("&cSpin Disabled.");
 	}
 }
 
