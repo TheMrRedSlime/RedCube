@@ -233,7 +233,7 @@ static void UpdateLocation(EntityID id, struct LocationUpdate* update) {
 	if (e) { e->VTABLE->SetLocation(e, update); }
 }
 
-static void UpdateUserType(struct HacksComp* hacks, cc_uint8 value) {
+void UpdateUserType(struct HacksComp* hacks, cc_uint8 value) {
 	cc_bool isOp = value >= 100 && value <= 127;
 	hacks->IsOp  = isOp;
 	if (IsSupported(blockPerms_Ext)) return;

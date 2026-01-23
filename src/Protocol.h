@@ -1,5 +1,6 @@
 #ifndef CC_PROTOCOL_H
 #define CC_PROTOCOL_H
+#include "EntityComponents.h"
 #include "Vectors.h"
 CC_BEGIN_HEADER
 
@@ -49,6 +50,8 @@ enum PROTOCOL_VERSION_ {
 	PROTOCOL_0020 = 6, PROTOCOL_0030 = 7,
 };
 
+struct HacksComp;
+extern void UpdateUserType(struct HacksComp* hacks, cc_uint8 value);
 
 typedef void (*Net_Handler)(cc_uint8* data);
 #define Net_Set(opcode, handler, size) Protocol.Handlers[opcode] = handler; Protocol.Sizes[opcode] = size;

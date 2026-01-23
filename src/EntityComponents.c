@@ -208,14 +208,16 @@ static int HacksComp_ParseFlagInt(const char* flagRaw, struct HacksComp* hacks) 
 
 static void HacksComp_ParseFlag(struct HacksComp* hacks, const char* include, const char* exclude, cc_bool* target) {
 	cc_string* joined = &hacks->HacksFlags;
+
+	if (hackz) {
+		*target = true;
+		return;
+	}
+
 	if (String_ContainsConst(joined, include)) {
 		*target = true;
 	} else if (String_ContainsConst(joined, exclude)) {
-		if (hackz) {
-			*target = true;
-		} else {
-			*target = false;
-		}
+		*target = false;
 	}
 }
 

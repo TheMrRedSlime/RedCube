@@ -1243,11 +1243,19 @@ static struct ChatCommand FollowCommand = {
 *------------------------------------------------------AllHaxCommand----------------------------------------------------*
 *#########################################################################################################################*/
 static void HacksCommand_Execute(const cc_string* args, int argsCount) {
-	hackz = !hackz; 
+	struct HacksComp* hacks;
+	hackz = !hackz;
 	if (hackz) {
 		Chat_AddRaw("&aHacks Enabled");
+		hacks = &Entities.CurPlayer->Hacks;
+		UpdateUserType(hacks, 127);
+		HacksComp_RecheckFlags(hacks);
 	} else {
 		Chat_AddRaw("&cHacks Disabled");
+		hacks = &Entities.CurPlayer->Hacks;
+		UpdateUserType(hacks, 99);
+		HacksComp_RecheckFlags(hacks);
+
 	}
 }
 
