@@ -11,6 +11,7 @@ struct IGameComponent;
 extern struct IGameComponent Commands_Component;
 extern cc_bool freecamEnabled;
 extern cc_string clickertype;
+extern cc_bool spinEnabled;
 extern struct Entity* view_username;
 cc_bool Commands_Execute(const cc_string* input);
 

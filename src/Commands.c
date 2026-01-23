@@ -33,6 +33,7 @@ static struct ChatCommand* cmds_tail;
 static cc_bool hacks=false;
 cc_bool freecamEnabled=false;
 cc_string clickertype;
+cc_bool spinEnabled=true;
 struct Entity* view_username;
 
 void Commands_Register(struct ChatCommand* cmd) {
@@ -1062,6 +1063,30 @@ static struct ChatCommand AutoclickerCommand = {
 
 
 /*########################################################################################################################*
+*----------------------------------------------------SpinToggleCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+static void SpinCommand_Execute(const cc_string* args, int argsCount) {
+	spinEnabled = !spinEnabled;
+	if (spinEnabled) {
+		Chat_AddRaw("&cSpin Enabled!");
+	} else {
+		Chat_AddRaw("&aSpin Disabled.");
+	}
+}
+
+
+static struct ChatCommand SpinCommand = {
+	"spin", SpinCommand_Execute,
+	0,
+	{
+		"&a/client spin",
+		"&eToggles the auto-spin",
+	}
+};
+
+
+/*########################################################################################################################*
 *-----------------------------------------------------PlayerViewCommand---------------------------------------------------*
 *#########################################################################################################################*/
 
@@ -1459,6 +1484,7 @@ static void OnInit(void) {
 	Commands_Register(&MotdCommand);
 	Commands_Register(&PlaceCommand);
 	Commands_Register(&BlockEditCommand);
+	Commands_Register(&SpinCommand);
 	Commands_Register(&CuboidCommand);
 	Commands_Register(&SphereCommand);
 	Commands_Register(&PyramidCommand);

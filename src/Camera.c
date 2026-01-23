@@ -49,14 +49,17 @@ static void Camera_OnRawMovement(float deltaX, float deltaY, int deviceIndex) {
 void Camera_KeyLookUpdate(float delta) {
 	float amount = (Camera.Sensitivity / 100.0f) * (1000 * delta);;
 	int i = Game.CurrentState;
-	if(!Window_Main.Focused) states[i].deltaX += amount;
+	if(!Window_Main.Focused && spinEnabled) states[i].deltaX += amount;
 
 	if (Game.Time > nextClick) {
 		if (String_CaselessEqualsConst(&clickertype, "right")) {
+			MouseStatePress(MOUSE_RIGHT);
 			InputHandler_PlaceBlock();
 			nextClick = Game.Time + 0.1;
 		} else if (String_CaselessEqualsConst(&clickertype, "left")) {
 			InputHandler_DeleteBlock();
+			MouseStatePress(MOUSE_LEFT);
+
 			nextClick = Game.Time + 0.1;
 		}
 	}
