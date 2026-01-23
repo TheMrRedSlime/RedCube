@@ -22,6 +22,7 @@ static Vec2 cam_rotOffset;
 static cc_bool cam_isForwardThird;
 static Vec3 cam_overridePos;
 cc_bool cam_useOverride;
+static double nextClick;
 #define DEF_ZOOM 3.0f
 static float dist_third = DEF_ZOOM, dist_forward = DEF_ZOOM;
 
@@ -49,6 +50,17 @@ void Camera_KeyLookUpdate(float delta) {
 	float amount = (Camera.Sensitivity / 100.0f) * (1000 * delta);;
 	int i = Game.CurrentState;
 	if(!Window_Main.Focused) states[i].deltaX += amount;
+
+	if (Game.Time > nextClick) {
+		if (String_CaselessEqualsConst(&clickertype, "right")) {
+			InputHandler_PlaceBlock();
+			nextClick = Game.Time + 0.1;
+		} else if (String_CaselessEqualsConst(&clickertype, "left")) {
+			InputHandler_DeleteBlock();
+			nextClick = Game.Time + 0.1;
+		}
+	}
+	
 	if (Gui.InputGrab) return;
 
 

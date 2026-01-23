@@ -10,6 +10,7 @@ CC_BEGIN_HEADER
 struct IGameComponent;
 extern struct IGameComponent Commands_Component;
 extern cc_bool freecamEnabled;
+extern cc_string clickertype;
 extern struct Entity* view_username;
 cc_bool Commands_Execute(const cc_string* input);
 

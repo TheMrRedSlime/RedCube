@@ -34,7 +34,8 @@ static float input_fovIndex = -1.0f;
 #ifdef CC_BUILD_WEB
 static cc_bool suppressEscape;
 #endif
-enum MouseButton_ { MOUSE_LEFT, MOUSE_RIGHT, MOUSE_MIDDLE };
+//enum MouseButton_ { MOUSE_LEFT, MOUSE_RIGHT, MOUSE_MIDDLE };
+
 
 
 /*########################################################################################################################*
@@ -273,7 +274,7 @@ static void MouseStateUpdate(int button, cc_bool pressed) {
 	CPE_SendPlayerClick(button, pressed, (EntityID)input_pickingId, &Game_SelectedPos);	
 }
 
-static void MouseStatePress(int button) {
+void MouseStatePress(int button) {
 	input_lastClick = Game.Time;
 	input_pickingId = -1;
 	MouseStateUpdate(button, true);
@@ -403,7 +404,7 @@ static cc_bool CheckIsFree(BlockID block) {
 	return true;
 }
 
-static void InputHandler_DeleteBlock(void) {
+void InputHandler_DeleteBlock(void) {
 	IVec3 pos;
 	BlockID old;
 	/* always play delete animations, even if we aren't deleting a block */
@@ -419,7 +420,7 @@ static void InputHandler_DeleteBlock(void) {
 	Event_RaiseBlock(&UserEvents.BlockChanged, pos, old, BLOCK_AIR);
 }
 
-static void InputHandler_PlaceBlock(void) {
+void InputHandler_PlaceBlock(void) {
 	IVec3 pos;
 	BlockID old, block;
 	pos = Game_SelectedPos.translatedPos;
@@ -442,7 +443,7 @@ static void InputHandler_PlaceBlock(void) {
 	Event_RaiseBlock(&UserEvents.BlockChanged, pos, old, block);
 }
 
-static void InputHandler_PickBlock(void) {
+void InputHandler_PickBlock(void) {
 	IVec3 pos;
 	BlockID cur;
 	pos = Game_SelectedPos.pos;

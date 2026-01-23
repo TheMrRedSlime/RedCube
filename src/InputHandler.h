@@ -52,7 +52,18 @@ cc_bool InputHandler_SetFOV(int fov);
 cc_bool Input_HandleMouseWheel(float delta);
 void InputHandler_Tick(void);
 void InputHandler_OnScreensChanged(void);
+extern void MouseStatePress(int button);
+extern void InputHandler_PlaceBlock(void);
+extern void InputHandler_DeleteBlock(void);
+extern void InputHandler_PickBlock(void);
 
+typedef enum MouseButton_ { 
+    MOUSE_LEFT, 
+    MOUSE_RIGHT, 
+    MOUSE_MIDDLE 
+} MouseButton;
+
+extern MouseButton currentButton;
 
 typedef cc_bool (*BindTriggered)(int key, struct InputDevice* device);
 typedef void    (*BindReleased)(int key, struct InputDevice* device);

@@ -32,6 +32,7 @@ static struct ChatCommand* cmds_head;
 static struct ChatCommand* cmds_tail;
 static cc_bool hacks=false;
 cc_bool freecamEnabled=false;
+cc_string clickertype;
 struct Entity* view_username;
 
 void Commands_Register(struct ChatCommand* cmd) {
@@ -1018,6 +1019,49 @@ static struct ChatCommand PlayerTeleportCommand = {
 
 
 /*########################################################################################################################*
+*----------------------------------------------------AutoclickerCommand---------------------------------------------------*
+*#########################################################################################################################*/
+
+static void AutoclickerCommand_Execute(const cc_string* args, int argsCount) {
+	struct Entity* ep = &Entities.CurPlayer->Base;
+	struct LocationUpdate update;
+	Vec3 v;
+	cc_bool found = false;
+	cc_string clicker = args[0];
+
+	if (argsCount != 1) {
+		Chat_AddRaw("&e/client autoclicker [right/left]");
+		if (!String_Equals(&clickertype, &String_Empty)) {
+			Chat_AddRaw("&c Turned off Autoclicker");
+			clickertype = String_Empty;
+		}
+		return;
+	}
+
+	if(String_CaselessEqualsConst(&clicker, "right")) {
+		Chat_AddRaw("&aEnabled Right-Click Autoclicker.");
+		clickertype = args[0];
+	} else if (String_CaselessEqualsConst(&clicker, "left")) {
+		Chat_AddRaw("&aEnabled Left-Click Autoclicker.");
+		clickertype = args[0];
+	} else {
+		Chat_AddRaw("&c Turned off Autoclicker");
+		clickertype = String_Empty;
+	}
+}
+
+
+static struct ChatCommand AutoclickerCommand = {
+	"autoclicker", AutoclickerCommand_Execute,
+	0,
+	{
+		"&a/client autoclicker [left/right]",
+		"&eAutoclicks lol",
+	}
+};
+
+
+/*########################################################################################################################*
 *-----------------------------------------------------PlayerViewCommand---------------------------------------------------*
 *#########################################################################################################################*/
 
@@ -1408,6 +1452,7 @@ static void OnInit(void) {
 	Commands_Register(&TeleportCommand);
 	Commands_Register(&PlayerTeleportCommand);
 	Commands_Register(&FollowCommand);
+	Commands_Register(&AutoclickerCommand);
 	Commands_Register(&PlayerFreeCamCommand);
 	Commands_Register(&PlayerViewCommand);
 	Commands_Register(&ClearDeniedCommand);
