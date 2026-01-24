@@ -102,8 +102,8 @@ void Camera_KeyLookUpdate(float delta) {
 			cam_overridePos.z += right.z * moveSpeed;
 		}
 
-		if (Bind_IsTriggered[BIND_SPEED]) cam_overridePos.y += moveSpeed;
-        if (Bind_IsTriggered[BIND_HALF_SPEED]) cam_overridePos.y -= moveSpeed;
+		if (Bind_IsTriggered[BIND_JUMP]) cam_overridePos.y += moveSpeed;
+        if (Bind_IsTriggered[BIND_SPEED] || Bind_IsTriggered[BIND_HALF_SPEED]) cam_overridePos.y -= moveSpeed;
     }
 
 	if (cam_useOverride && view_username != NULL && !freecamEnabled) {

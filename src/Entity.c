@@ -931,7 +931,7 @@ static cc_bool LocalPlayer_HandleJump(int key, struct InputDevice* device) {
 	struct HacksComp* hacks     = &p->Hacks;
 	struct PhysicsComp* physics = &p->Physics;
 	int maxJumps;
-	if (Gui.InputGrab) return false;
+	if (Gui.InputGrab || freecamEnabled) return false;
 	physics->Jumping = true;
 
 	if (!p->Base.OnGround && !(hacks->Flying || hacks->Noclip)) {
