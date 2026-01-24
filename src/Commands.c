@@ -1085,6 +1085,54 @@ static struct ChatCommand SpinCommand = {
 	}
 };
 
+/*########################################################################################################################*
+*-----------------------------------------------------CoinFlipCommand-----------------------------------------------------*
+*#########################################################################################################################*/
+
+static void CoinFlipCommand_Execute(const cc_string* args, int argsCount) {
+	cc_bool coin = rand() % 2;
+	cc_string outcome = String_FromReadonly(coin ? "Heads": "Tails");
+	Chat_Add1("&a[&eCF&a] &eCoin landed &a%s", &outcome);
+}
+
+
+static struct ChatCommand CoinFlipCommand = {
+	"cf", CoinFlipCommand_Execute,
+	0,
+	{
+		"&a/client cf",
+		"&eCoinflip between heads and tails!",
+	}
+};
+
+/*########################################################################################################################*
+*-----------------------------------------------------EightBallCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+static void EightBallCommand_Execute(const cc_string* args, int argsCount) {
+    const char* responses[] = {
+        "Yes definitely", "Yes", "Outlook good", "Without a doubt", "Most likely",
+        "Reply hazy, try again", "Ask again later", "Better not tell you now", 
+        "Cannot predict now", "Concentrate and ask again",
+        "Don't count on it", "My reply is no", "My sources say no", 
+        "Outlook not so good", "Very doubtful"
+    };
+    
+    int num = sizeof(responses) / sizeof(responses[0]);
+    cc_string chosen = String_FromReadonly(responses[rand() % num]);
+
+    Chat_Add1("&a[&b8-Ball&a] &e%s", &chosen);
+}
+
+static struct ChatCommand EightBallCommand = {
+	"8ball", EightBallCommand_Execute,
+	0,
+	{
+		"&a/client 8ball",
+		"&e Get an answer from the magic 8-ball!",
+	}
+};
+
 
 /*########################################################################################################################*
 *-----------------------------------------------------PlayerViewCommand---------------------------------------------------*
@@ -1180,11 +1228,15 @@ static void* Follow_Thread(void* arg) {
 
     while (my_version == follow_version) {
         struct Entity* player = &Entities.CurPlayer->Base;
+		if (target == NULL) {
+			Chat_AddRaw("&cPlayer has either teleported or left the server");
+			return NULL;
+		}
         
         float dx = player->Position.x - target->Position.x;
         float dy = player->Position.y - target->Position.y;
         float dz = player->Position.z - target->Position.z;
-        
+
         if ((dx*dx + dy*dy + dz*dz) > 0.001f) {
             struct LocationUpdate update = { .flags = LU_HAS_POS, .pos = target->Position };
             player->VTABLE->SetLocation(player, &update);
@@ -1477,6 +1529,8 @@ static void OnInit(void) {
 	Commands_Register(&PlaceCommand);
 	Commands_Register(&BlockEditCommand);
 	Commands_Register(&SpinCommand);
+	Commands_Register(&CoinFlipCommand);
+	Commands_Register(&EightBallCommand);
 	Commands_Register(&CuboidCommand);
 	Commands_Register(&SphereCommand);
 	Commands_Register(&PyramidCommand);
